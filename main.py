@@ -192,8 +192,8 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
 #                     data = np.asarray(corrupt_input(rng, data, 0.1), dtype='float32')
                 a,b,c,d = data.shape
                 data = data.reshape(a,b*c*d)
-                cost_test_i, cost_sample_i = discriminator_update(data, lr=eps_dis)
-            
+                cost_test_i  = discriminator_update(data, lr=eps_dis)
+                cost_sample_i = 0
                 return cost_test_i, cost_sample_i, cost_gen_i
                 
                 
@@ -209,7 +209,8 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
                 a,b,c,d = data.shape
                 data = data.reshape(a,b*c*d)
 
-                cost_test_i, cost_sample_i = discriminator_update(data, lr=eps_dis)
+                cost_test_i  = discriminator_update(data, lr=eps_dis)
+                cost_sample_i = 0
         
                 if batch_i % K == 0:
                     cost_gen_i = generator_update(lr=eps_gen)
@@ -286,7 +287,8 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
 #                     data = np.asarray(corrupt_input(rng, data, 0.1), dtype='float32')
                 a,b,c,d = data.shape
                 data = data.reshape(a, b*c*d)
-                cost_test_vl_j, cost_sample_vl_j, cost_gen_vl_j = get_valid_cost(data)
+                cost_test_vl_j, cost_gen_vl_j = get_valid_cost(data)
+                cost_sample_vl_j=0
                 costs_vl[0].append(cost_test_vl_j)
                 costs_vl[1].append(cost_sample_vl_j)
                 costs_vl[2].append(cost_gen_vl_j)
@@ -657,17 +659,17 @@ if __name__ == '__main__':
     if username=='mahe6562':
         datapath = '/scratch/g/gwtaylor/mahe6562/data/lsun/bedroom/preprocessed_toy_100/'
         if mname=='GRAN':
-            save_path = '/scratch/g/gwtaylor/mahe6562/gap/gran-lsun'
+            save_path = '/scratch/g/gwtaylor/mahe6562/gap/gran-lsun/'
         elif mname=='DCGAN':
-            save_path = '/scratch/g/gwtaylor/mahe6562/gap/dcgan-lsun'
+            save_path = '/scratch/g/gwtaylor/mahe6562/gap/dcgan-lsun/'
         if size>1 and combined_f==1:
-            save_path = '/scratch/g/gwtaylor/mahe6562/gap/combined-lsun'
+            save_path = '/scratch/g/gwtaylor/mahe6562/gap/combined-lsun/'
             
         import time
         date = '%d-%d' % (time.gmtime()[1], time.gmtime()[2])
             
         # save_path+= date+ '-swp'+str(swp_every)+ '-'+str(size)+'-'+backend+'-%d/' % sum_worker_id
-         save_path+= date+ '-' + str(sum_worker_id) + '-' + ltype + '-' + args.rngseed + '/' 
+        save_path+= date+ '-' + str(sum_worker_id) + '-' + ltype + '-' + str(args.rngseed) + '/' 
 
         if not os.path.exists(save_path):
             os.makedirs(save_path)

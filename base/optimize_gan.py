@@ -191,7 +191,7 @@ class Optimize():
     def inspect_outputs(i, node, fn):
         print "output(s) value(s):", [output[0] for output in fn.outputs]
 
-    def optimize_mnnf(self, gen, mnnd, lam1=0.00001, ltype='gan', _alpha=10., mtype='iw'):
+    def optimize_mnnf(self, gen, mnnd, lam1=0.00001, _alpha=10., mtype='iw'):
         i = T.iscalar('i'); 
         lr = T.fscalar('lr');
         alpha=T.fscalar('alpha')
@@ -226,9 +226,7 @@ class Optimize():
             cost = T.mean((p_y__x1-1)**2) + T.mean((p_y__x0)**2)
             gparams = T.grad(cost, mnnd.params)
 
-        #if ltype == 'wgan':
-        #    updates = self.rmsprop(mnnd.params, gparams, lr)
-        #else:
+
         updates = self.ADAM(mnnd.params, gparams, lr)
 
         mnnd_update = theano.function([Xu, theano.In(lr,value=self.epsilon_dis), theano.In(alpha,value=_alpha)],\
@@ -240,7 +238,7 @@ class Optimize():
         return mnnd_update, get_valid_cost, get_test_cost
         
 
-    def optimize_gan_hkl(self, model, lam1=0.00001):
+    def optimize_gan_hkl(self, model, ltype, lam1=0.00001):
         """
         optimizer for hkl packaged dataset. 
         Returns the updates for discirminator & generator and computed costs for the model.
@@ -249,9 +247,9 @@ class Optimize():
         lr = T.fscalar('lr');
         Xu = T.fmatrix('X'); 
 
-        cost_test, cost_sample  = model.cost_dis(Xu, self.batch_sz)
+        cost_disc  = model.cost_dis(Xu, self.batch_sz)
                                 
-        cost_disc = cost_test + cost_sample + lam1 * model.dis_network.weight_decay_l2()
+        cost_disc = cost_disc + lam1 * model.dis_network.weight_decay_l2()
         
         cost_gen    = model.cost_gen(self.batch_sz) # \
                                 # + lam1 * model.gen_network.weight_decay_l2()
@@ -265,11 +263,11 @@ class Optimize():
             updates_dis = self.rmsprop(model.dis_network.params, gparams_dis, lr)
         else: # lsgan and gan
             gparams_dis = T.grad(cost_disc, model.dis_network.params)
-            updates_dis = self.ADAM2(model.dis_network.params, gparams_dis, lr)
+            updates_dis = self.ADAM(model.dis_network.params, gparams_dis, lr)
 
 
         # updates_dis = self.ADAM2(model.dis_network.params, gparams_dis, lr)
-        updates_gen = self.ADAM2(model.gen_network.params, gparams_gen, lr)
+        updates_gen = self.ADAM(model.gen_network.params, gparams_gen, lr)
 
         # disc_update contains the cost_disc value
         #discriminator_update = theano.function([],\
@@ -277,7 +275,7 @@ class Optimize():
         #                            givens=[(Xu, self.shared_x), (lr, self.epsilon_dis)])
 
         discriminator_update = theano.function([Xu, theano.In(lr,value=self.epsilon_dis)],\
-                                   outputs=[cost_test,cost_sample],updates=updates_dis)
+                                   outputs=[cost_disc],updates=updates_dis)
 
         #generator_update = theano.function([],\
         #        outputs=cost_gen, updates=updates_gen, givens = [(lr, self.epsilon_gen)])
@@ -288,7 +286,7 @@ class Optimize():
         #get_valid_cost  = theano.function([], outputs=[cost_disc, cost_gen], givens=[(Xu, self.shared_x)])
         #get_test_cost   = theano.function([], outputs=[cost_disc, cost_gen], givens=[(Xu, self.shared_x)])
 
-        get_valid_cost   = theano.function([Xu], outputs=[cost_test,cost_sample,cost_gen])
+        get_valid_cost   = theano.function([Xu], outputs=[cost_disc,cost_gen])
         get_test_cost    = None #theano.function([Xu], outputs=[cost_disc, cost_gen])
 
 

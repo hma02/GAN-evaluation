@@ -1,0 +1,1 @@
+python -u ./main.py -d cuda1 -l gan -r 1234

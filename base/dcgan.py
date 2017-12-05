@@ -45,14 +45,14 @@ class DCGAN():
         p_y__x0      = self.dis_network.propagate(gen_samples, atype='leaky').flatten()
         
         if self.ltype in ['wgan', 'iwgan']:
-            return -(T.mean(p_y__x1) - T.mean(p_y__x0)) , 0
+            return -(T.mean(p_y__x1) - T.mean(p_y__x0)) 
         elif self.ltype == 'lsgan':
-            return T.mean((p_y__x1-1)**2) + T.mean((p_y__x0)**2) , 0
+            return T.mean((p_y__x1-1)**2) + T.mean((p_y__x0)**2)
         else:
             target1 = T.ones(p_y__x1.shape)
             target0     = T.zeros(p_y__x0.shape)
             return T.mean(T.nnet.binary_crossentropy(p_y__x1, target1)) + \
-                    T.mean(T.nnet.binary_crossentropy(p_y__x0, target0)) , 0
+                    T.mean(T.nnet.binary_crossentropy(p_y__x0, target0))
 
 
     def cost_gen(self, num_examples):
