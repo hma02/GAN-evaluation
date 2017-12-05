@@ -15,10 +15,10 @@ fi
 
 if [[ "$backend" == "gpu" ]]; then
 	echo "cudandarray backend"
-	source /opt/sharcnet/testing/set4theano.sh
+	source ~/1.*.sh
 else
 	echo "gpuarray backend"
-	source /opt/sharcnet/testing/set4theano-new.sh
+	source ~/1.*.sh
 fi
 
 if [[ -z $3 ]]; then

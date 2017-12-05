@@ -28,9 +28,10 @@ from layers.utils import activation_fn_th, initialize_weight
 
 class convnet64():
 
-    def __init__ (self, model_params, nkerns=[3,1,2,4,8], ckern=128, filter_sizes=[5,5,5,5,5,4]):
+    def __init__ (self, model_params, nkerns=[3,1,2,4,8], ckern=128, filter_sizes=[5,5,5,5,5,4], ltype='gan'):
         """Initializes the architecture of the discriminator"""
-
+        
+        self.ltype = ltype
         self.num_hid, num_dims, num_class, self.batch_size, self.num_channels = model_params
         self.D =  int(np.sqrt(num_dims / self.num_channels))
         numpy_rng=np.random.RandomState(1234)
@@ -66,7 +67,10 @@ class convnet64():
         H3 = self.L4.conv(H2, atype=atype) 
         H3 = H3.flatten(2)
 
-        y  = T.nnet.sigmoid(T.dot(H3, self.W_y))    
+        if self.ltype=='gan' or self.ltype=='js':
+            y  = T.nnet.sigmoid(T.dot(H3, self.W_y))    
+        else:
+            y = T.dot(H3, self.W_y)
 
         return y
 

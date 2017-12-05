@@ -313,7 +313,7 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
                                         fname=save_path+'/' +str(size)+str(rank)+'-' + str(epoch))
 
             # change the name to save to when new model is found.
-            if epoch > num_epoch * 0.5 and epoch%2==0: 
+            if epoch%4==0 or epoch>(num_epoch-3) or epoch<2: 
                 save_the_weight(model, save_path+str(size)+str(rank)+'dcgan_'+ model_param_save + str(epoch))# + findex+ str(K)) 
                 
             
@@ -361,9 +361,9 @@ def load_model(model_params, contF=True):
     if not contF:
         print '...Starting from the beginning'''
         if mname=='GRAN':
-            model = GRAN(model_params)
+            model = GRAN(model_params, ltype)
         elif mname=='DCGAN':
-            model = DCGAN(model_params)
+            model = DCGAN(model_params, ltype)
     else:
         print '...Continuing from Last time'''
         path_name = raw_input("Enter full path to the pre-trained model: ")
@@ -385,7 +385,7 @@ def set_up_train(model, opt_params):
 
     print ("Compiling...it may take a few minutes")
     discriminator_update, generator_update, get_valid_cost, get_test_cost\
-                    = opt.optimize_gan_hkl(model)
+                    = opt.optimize_gan_hkl(model, ltype)
     get_samples     = opt.get_samples(model)
     compile_finish = timeit.default_timer() 
     print 'Compile Time %f ' % ( compile_finish - compile_start) 
@@ -422,7 +422,33 @@ def main(opt_params, ganI_params, train_params, conv_params):
 
 if __name__ == '__main__':
     
+    import argparse
     
+    parser = argparse.ArgumentParser(description="main_dcgan")
+
+    parser.add_argument("-d","--device", type=str, default='cuda0',
+                     help="the theano context device to be used",
+                     required=True)
+    parser.add_argument("-w","--workers", type=int, default=1,
+                     help="how many workers",
+                     required=False)
+    parser.add_argument("-m","--mname", type=str, default='DCGAN',
+                     help="DCGAN OR GRAN?",
+                     required=False)         
+    parser.add_argument("-b","--combined", type=int, default=0,
+                     help="DCGAN and GRAN combined?",
+                     required=False)
+                             
+    parser.add_argument("-l","--ltype", type=str, default='gan',
+                     help="which gan type to be used in training",
+                     required=True)
+    parser.add_argument("-r","--rngseed", type=int, default=1234,
+                     help="which rng seed to be used in training",
+                     required=True)
+    
+    args = parser.parse_args()
+    
+    ltype=args.ltype
     
     #0.initialize MPI
 
@@ -442,9 +468,9 @@ if __name__ == '__main__':
     import base.subnets.layers.someconfigs as someconfigs
     try:
     
-        device=sys.argv[1]
-        someconfigs.indep_workers=int(sys.argv[2])
-        mname=str(sys.argv[3])
+        device=args.device #sys.argv[1]
+        someconfigs.indep_workers=args.workers #int(sys.argv[2])
+        mname=args.mname #str(sys.argv[3])
     except:
         print 'USAGE: python main.py [device] [indep_worker] [mname] [combined_f](optional)'
         print 'example: device=cuda0, indep_worker=0, mname=GRAN'
@@ -452,7 +478,7 @@ if __name__ == '__main__':
         
     if size>1:
         try:
-            combined_f = int(sys.argv[4])
+            combined_f = args.combined #int(sys.argv[4])
             if combined_f==1:
                 print 'Combined'
         except:
@@ -527,7 +553,7 @@ if __name__ == '__main__':
     #3.use pid to make rng different for each worker batch shuffle
     np_rng = np.random.RandomState(1234+rank) # only for shuflling files
     import base.subnets.layers.utils as utils
-    utils.rng = np.random.RandomState(1234) # for init network and corrupt images
+    utils.rng = np.random.RandomState(args.rngseed) # for init network and corrupt images
     rng = utils.rng
     
     curve=[]
@@ -580,8 +606,17 @@ if __name__ == '__main__':
         epsilon_dis = 0.0001 #halved both lr will give greyish lsun samples
         epsilon_gen = 0.0002 #halved both lr will give greyish lsun samples
     elif mname=='DCGAN':
-        epsilon_dis = 0.00005
-        epsilon_gen = 0.0001
+        
+        if ltype == 'gan':
+            epsilon_dis = 0.00005
+            epsilon_gen = 0.0001
+        elif ltype =='lsgan':
+            epsilon_dis = 0.0002
+            epsilon_gen = 0.0004
+        elif ltype =='wgan':
+            epsilon_dis = 0.0002
+            epsilon_gen = 0.0004
+            
     momentum    = 0.0 #Not Used
     lam1        = 0.000001 
 
@@ -613,25 +648,26 @@ if __name__ == '__main__':
     import pwd
     username = pwd.getpwuid(os.geteuid()).pw_name
 
-    if username=='djkim117':
-        save_path = '/work/djkim117/params/gap/lsun/'
-        datapath = '/work/djkim117/lsun/church/preprocessed_toy_100/'
-    elif username=='imj':
-        datapath = '/work/djkim117/lsun/church/preprocessed_toy_100/'
-        save_path = '/work/imj/gap/dcgans/lsun/dcgan4_100swap_30epoch_noise'
-    elif username=='mahe6562':
-        datapath = '/work/djkim117/lsun/church/preprocessed_toy_100/'
+    # if username=='djkim117':
+    #     save_path = '/work/djkim117/params/gap/lsun/'
+    #     datapath = '/work/djkim117/lsun/church/preprocessed_toy_100/'
+    # elif username=='imj':
+    #     datapath = '/work/djkim117/lsun/church/preprocessed_toy_100/'
+    #     save_path = '/work/imj/gap/dcgans/lsun/dcgan4_100swap_30epoch_noise'
+    if username=='mahe6562':
+        datapath = '/scratch/g/gwtaylor/mahe6562/data/lsun/bedroom/preprocessed_toy_100/'
         if mname=='GRAN':
-            save_path = '/scratch/mahe6562/gap/gran-lsun-nccl/'
+            save_path = '/scratch/g/gwtaylor/mahe6562/gap/gran-lsun'
         elif mname=='DCGAN':
-            save_path = '/scratch/mahe6562/gap/dcgan-lsun-nccl/'
+            save_path = '/scratch/g/gwtaylor/mahe6562/gap/dcgan-lsun'
         if size>1 and combined_f==1:
-            save_path = '/scratch/mahe6562/gap/combined-lsun-nccl/'
+            save_path = '/scratch/g/gwtaylor/mahe6562/gap/combined-lsun'
             
         import time
         date = '%d-%d' % (time.gmtime()[1], time.gmtime()[2])
             
-        save_path+= date+ '-swp'+str(swp_every)+ '-'+str(size)+'-'+backend+'-%d/' % sum_worker_id
+        # save_path+= date+ '-swp'+str(swp_every)+ '-'+str(size)+'-'+backend+'-%d/' % sum_worker_id
+         save_path+= date+ '-' + str(sum_worker_id) + '-' + ltype + '-' + args.rngseed + '/' 
 
         if not os.path.exists(save_path):
             os.makedirs(save_path)
