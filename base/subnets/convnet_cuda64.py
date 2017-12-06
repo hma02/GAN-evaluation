@@ -28,15 +28,15 @@ from layers.utils import activation_fn_th, initialize_weight
 
 class convnet64():
 
-    def __init__ (self, model_params, nkerns=[3,1,2,4,8], ckern=128, filter_sizes=[5,5,5,5,5,4], ltype='gan'):
+    def __init__ (self, model_params, nkerns=[3,1,2,4,8], filter_sizes=[5,5,5,5,5,4], ltype='gan'):
         """Initializes the architecture of the discriminator"""
         
         self.ltype = ltype
-        self.num_hid, num_dims, num_class, self.batch_size, self.num_channels = model_params
+        self.num_hid, num_dims, num_class, self.batch_size, self.num_channels, kern = model_params
         self.D =  int(np.sqrt(num_dims / self.num_channels))
         numpy_rng=np.random.RandomState(1234)
 
-        self.nkerns     = np.asarray(nkerns) * ckern # of constant gen filters in first conv layer
+        self.nkerns     = np.asarray(nkerns) * kern # of constant gen filters in first conv layer
         self.nkerns[0] = self.num_channels
         self.filter_sizes=filter_sizes
 

@@ -27,118 +27,9 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-def do_gam2(model, samples, comm, avoid_ranks, save_file_path='./gam2.csv'):
-    
-    rank=comm.rank
-    size=comm.size
-    #9.gam2 with 100 samples
-
-    gam2=True
-    
-    winner_rank=None
-    
-    if gam2:
-        
-        from base.gam2 import gam2
-
-        M = gam2(model, samples, comm)
-        
-        if rank==0:
-            np.savetxt(save_file_path, M, delimiter=",", fmt='%.3f') # save to a csv file
-        
-        n = M.shape[0]
-        
-        for i in range(n):
-            
-            M[i][i]=0
-            
-        ranking_arr = np.sum(M,axis=0)
-        
-        winner_ranks = ranking_arr.argsort()[::-1].tolist()
-        
-        if rank==0 and size>=2: 
-            print 'winners all: %d %d ...' % (winner_ranks[0], winner_ranks[1])
-            
-        for avoid in avoid_ranks: 
-            winner_ranks.remove(avoid)
-        
-        winner_ranks = winner_ranks[:2] # get the highest two scores
-        
-        if rank==0 and size>=2:
-            print 'winners gap: %d %d ...' % (winner_ranks[0], winner_ranks[1])
-        
-    return winner_ranks
-    
-def smooth_swp_lr(bk_eps_gen, bk_eps_dis, eps_gen, eps_dis, smooth_count, total_smooth_count):
-    
-    if smooth_count==0:
-        
-        pass
-        
-    else:
-        
-        # for _rank in range(size):
-#             if _rank not in avoid_ranks:
-#                 print 'smoothing %.6f %.6f' % (eps_gen,eps_dis)
-#                 break
-        
-        smooth_count = smooth_count-1
-        
-        eps_gen = bk_eps_gen* (1+0.3/(total_smooth_count-smooth_count+0.3))
-        
-        eps_dis = bk_eps_dis* (1-0.3/(total_smooth_count-smooth_count+0.6))
-    
-    return smooth_count, eps_gen, eps_dis
-            
-def do_tsne():
-    
-    #9.t-SNE plot with 100 samples, spawning a child process from rank0 for doing this
-    
-    tsne=False
-    
-    if tsne and gam2:
-        
-        pass
-        
-        from base.tsne import tsne
-        
-        tsne_list = [data]
-        tsne_list.extend(sample_list)
-        
-        if rank==0: tsne(tsne_list)
-    
 
 def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_params):
 
-    
-    #5. initialize exchanger
-    if size>1:
-        
-        if someconfigs.backend=='gpuarray':
-            from base.swp import Exch_swap_gpuarray, get_pairs, get_winner
-    
-            exchanger = Exch_swap_gpuarray(comm)
-            exchanger.prepare(ctx, model.dis_network.params) #only swap the dis params
-            
-        elif someconfigs.backend=='cudandarray':
-            from base.swp import Exch_swap_cudandarray, get_pairs, get_winner
-            
-            exchanger = Exch_swap_cudandarray(comm)
-            exchanger.prepare(ctx,drv,model.dis_network.params) #only swap the dis params
-        else:
-            raise ValueError('wrong backend: %s' % someconfigs.backend )
-        
-    # print '=============='
-    # for param in model.dis_network.params:
-    #     print param.get_value().shape
-    #
-    # print '=============='
-    # for param in model.gen_network.params:
-    #     print param.get_value().shape
-    # print '=============='
-    
-    #---
-        
     ganI_params, conv_params = model_params 
     batch_sz, epsilon_gen, epsilon_dis, momentum, num_epoch, N, Nv, Nt, lam = opt_params   
     batch_sz, D, num_hids, rng, num_z, nkerns, ckern, num_channel, num_steps= ganI_params
@@ -146,10 +37,12 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
     num_batch_train, num_batch_valid, num_batch_test                        = num_batchs
     get_samples, discriminator_update, generator_update, get_valid_cost, get_test_cost = theano_fns
     
-    print '...Start Training'
+    assert(mtype!=None and mtype!='')
+    
+    print '...Start Testing'
     findex= str(num_hids[0])+'_'
     best_vl = np.infty    
-    K=1 #FIXED
+    # K=1 #FIXED
     num_samples =100;
     count=0
     smooth_count=0

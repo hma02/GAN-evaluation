@@ -1,0 +1,431 @@
+
+mahe6562@p8t03 (cond-dcgan *) eval $ CUDA_VISIBLE_DEVICES=2 TRIAL=0 python run.p
+y
+Using cuDNN version 5105 on context None
+Mapped name None to device cuda0: Tesla P100-SXM2-16GB (000A:01:00.0)
+model: our_dcgan
+data: continuous
+running gan
+load model: /home/g/gwtaylor/mahe6562/gan-zoo/dcgan-cifar10/3-23-25641-gan/wdcga
+n_param_cifar10_200.save
+load gen
+(100, 16384) (100, 16384)
+(16384,) (16384,)
+(16384,) (16384,)
+(1024, 512, 5, 5) (1024, 512, 5, 5)
+(512,) (512,)
+(512,) (512,)
+(512, 256, 5, 5) (512, 256, 5, 5)
+(256,) (256,)
+(256,) (256,)
+(256, 3, 5, 5) (256, 3, 5, 5)
+run valid
+Among  50000 raw data, we generated:
+40000  training data
+5000  validation data
+5000  test data
+
+num_test: 36
+
+steps 99
+Accept: 0.737847222222
+Log-prob: -2.66819228829
+
+steps 199
+Accept: 0.604166666667
+Log-prob: -4.0635678309
+
+steps 299
+Accept: 0.645833333333
+Log-prob: -5.28868767014
+
+steps 399
+Accept: 0.661458333333
+Log-prob: -5.72670723127
+
+steps 499
+Accept: 0.675347222222
+Log-prob: -5.40544473145
+
+steps 599
+Accept: 0.652777777778
+Log-prob: -4.36441178477
+
+steps 699
+Accept: 0.652777777778
+Log-prob: -2.88454761063
+
+steps 799
+Accept: 0.631944444444
+Log-prob: -0.877090893074
+
+steps 899
+Accept: 0.645833333333
+Log-prob: 1.86894226166
+
+steps 999
+Accept: 0.638888888889
+Log-prob: 5.46988017803
+
+steps 1099
+Accept: 0.635416666667
+Log-prob: 9.63161560566
+
+steps 1199
+Accept: 0.652777777778
+Log-prob: 14.415498173
+
+steps 1299
+Accept: 0.638888888889
+Log-prob: 19.9293414463
+
+steps 1399
+Accept: 0.640625
+Log-prob: 26.1510681092
+
+steps 1499
+Accept: 0.654513888889
+Log-prob: 32.9583242147
+
+steps 1599
+Accept: 0.609375
+Log-prob: 40.4880375752
+
+steps 1699
+Accept: 0.633680555556
+Log-prob: 48.8362492474
+
+steps 1799
+Accept: 0.635416666667
+Log-prob: 58.0581627292
+
+steps 1899
+Accept: 0.651041666667
+Log-prob: 68.0994099883
+
+steps 1999
+Accept: 0.619791666667
+Log-prob: 79.1466228625
+
+steps 2099
+Accept: 0.678819444444
+Log-prob: 91.1162258433
+
+steps 2199
+Accept: 0.635416666667
+Log-prob: 104.001557146
+
+steps 2299
+Accept: 0.65625
+Log-prob: 117.901104805
+
+steps 2399
+Accept: 0.647569444444
+Log-prob: 132.86378226
+
+steps 2499
+Accept: 0.637152777778
+Log-prob: 148.893906423
+
+steps 2599
+Accept: 0.661458333333
+Log-prob: 166.114279445
+
+steps 2699
+Accept: 0.673611111111
+Log-prob: 184.50654653
+
+steps 2799
+Accept: 0.652777777778
+Log-prob: 204.165406417
+
+steps 2899
+Accept: 0.645833333333
+Log-prob: 225.13736216
+
+steps 2999
+Accept: 0.633680555556
+Log-prob: 247.511790754
+
+steps 3099
+Accept: 0.657986111111
+Log-prob: 271.283066118
+
+steps 3199
+Accept: 0.664930555556
+Log-prob: 296.44805333
+
+steps 3299
+Accept: 0.631944444444
+Log-prob: 323.070622463
+
+steps 3399
+Accept: 0.659722222222
+Log-prob: 351.173262232
+
+steps 3499
+Accept: 0.671875
+Log-prob: 380.76494553
+
+steps 3599
+Accept: 0.65625
+Log-prob: 411.804228398
+
+steps 3699
+Accept: 0.647569444444
+Log-prob: 444.311791315
+
+steps 3799
+Accept: 0.628472222222
+Log-prob: 478.164751284
+
+steps 3899
+Accept: 0.661458333333
+Log-prob: 513.286168874
+
+steps 3999
+Accept: 0.659722222222
+Log-prob: 549.743223174
+
+steps 4099
+Accept: 0.621527777778
+Log-prob: 587.450089292
+
+steps 4199
+Accept: 0.621527777778
+Log-prob: 626.335375272
+
+steps 4299
+Accept: 0.647569444444
+Log-prob: 666.307158162
+
+steps 4399
+Accept: 0.680555555556
+Log-prob: 707.303184132
+
+steps 4499
+Accept: 0.65625
+Log-prob: 749.186196086
+
+steps 4599
+Accept: 0.666666666667
+Log-prob: 791.862322563
+
+steps 4699
+Accept: 0.659722222222
+Log-prob: 835.238991796
+
+steps 4799
+Accept: 0.663194444444
+Log-prob: 879.13195333
+
+steps 4899
+Accept: 0.625
+Log-prob: 923.43658133
+
+steps 4999
+Accept: 0.649305555556
+Log-prob: 967.928859219
+
+steps 5099
+Accept: 0.65625
+Log-prob: 1012.44992779
+
+steps 5199
+Accept: 0.630208333333
+Log-prob: 1056.97555752
+
+steps 5299
+Accept: 0.65625
+Log-prob: 1101.23505402
+
+steps 5399
+Accept: 0.663194444444
+Log-prob: 1145.11905325
+
+steps 5499
+Accept: 0.630208333333
+Log-prob: 1188.49663978
+
+steps 5599
+Accept: 0.644097222222
+Log-prob: 1231.2193992
+
+steps 5699
+Accept: 0.618055555556
+Log-prob: 1273.22511869
+
+steps 5799
+Accept: 0.611111111111
+Log-prob: 1314.33201976
+
+steps 5899
+Accept: 0.631944444444
+Log-prob: 1354.46802014
+
+steps 5999
+Accept: 0.611111111111
+Log-prob: 1393.60224499
+
+steps 6099
+Accept: 0.647569444444
+Log-prob: 1431.62336941
+
+steps 6199
+Accept: 0.677083333333
+Log-prob: 1468.45942434
+
+steps 6299
+Accept: 0.625
+Log-prob: 1504.04815378
+
+steps 6399
+Accept: 0.664930555556
+Log-prob: 1538.33556917
+
+steps 6499
+Accept: 0.671875
+Log-prob: 1571.26982169
+
+steps 6599
+Accept: 0.651041666667
+Log-prob: 1602.84673741
+
+steps 6699
+Accept: 0.649305555556
+Log-prob: 1633.0588125
+
+steps 6799
+Accept: 0.652777777778
+Log-prob: 1661.89265526
+
+steps 6899
+Accept: 0.642361111111
+Log-prob: 1689.32424001
+
+steps 6999
+Accept: 0.65625
+Log-prob: 1715.41966162
+
+steps 7099
+Accept: 0.628472222222
+Log-prob: 1740.19759657
+
+steps 7199
+Accept: 0.644097222222
+Log-prob: 1763.65429087
+
+steps 7299
+Accept: 0.645833333333
+Log-prob: 1785.83015583
+
+steps 7399
+Accept: 0.633680555556
+Log-prob: 1806.76032336
+
+steps 7499
+Accept: 0.654513888889
+Log-prob: 1826.49634647
+
+steps 7599
+Accept: 0.663194444444
+Log-prob: 1845.07232634
+
+steps 7699
+Accept: 0.692708333333
+Log-prob: 1862.53593159
+
+steps 7799
+Accept: 0.664930555556
+Log-prob: 1878.93298536
+
+steps 7899
+Accept: 0.638888888889
+Log-prob: 1894.32572981
+
+steps 7999
+Accept: 0.647569444444
+Log-prob: 1908.74306513
+
+steps 8099
+Accept: 0.638888888889
+Log-prob: 1922.23664206
+
+steps 8199
+Accept: 0.651041666667
+Log-prob: 1934.8531841
+
+steps 8299
+Accept: 0.664930555556
+Log-prob: 1946.63554715
+
+steps 8399
+Accept: 0.631944444444
+Log-prob: 1957.63094984
+
+steps 8499
+Accept: 0.640625
+Log-prob: 1967.89073101
+
+steps 8599
+Accept: 0.651041666667
+Log-prob: 1977.45813163
+
+steps 8699
+Accept: 0.649305555556
+Log-prob: 1986.37268722
+
+steps 8799
+Accept: 0.642361111111
+Log-prob: 1994.66614765
+
+steps 8899
+Accept: 0.625
+Log-prob: 2002.37671064
+
+steps 8999
+Accept: 0.651041666667
+Log-prob: 2009.5415118
+
+steps 9099
+Accept: 0.670138888889
+Log-prob: 2016.20298833
+
+steps 9199
+Accept: 0.592013888889
+Log-prob: 2022.38996975
+
+steps 9299
+Accept: 0.637152777778
+Log-prob: 2028.13390824
+
+steps 9399
+Accept: 0.637152777778
+Log-prob: 2033.46382413
+
+steps 9499
+Accept: 0.642361111111
+Log-prob: 2038.4049761
+
+steps 9599
+Accept: 0.654513888889
+Log-prob: 2042.98869425
+
+steps 9699
+Accept: 0.649305555556
+Log-prob: 2047.23778887
+
+steps 9799
+Accept: 0.644097222222
+Log-prob: 2051.1738145
+
+steps 9899
+Accept: 0.616319444444
+Log-prob: 2054.82325765
+
+steps 9999
+Accept: 0.654513888889
+Log-prob: 2058.20470338
+Final Log-prob: 2058.20470338
+AIS forward Eval time: 23034.4568322 seconds
+mahe6562@p8t03 (cond-dcgan *) eval $
