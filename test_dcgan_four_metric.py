@@ -28,7 +28,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 
-def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_params):
+def train(model, train_params, num_batchs, theano_fns, opt_params, model_params):
 
     ganI_params, conv_params = model_params 
     batch_sz, epsilon_gen, epsilon_dis, momentum, num_epoch, N, Nv, Nt, lam = opt_params   
@@ -42,234 +42,124 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
     print '...Start Testing'
     findex= str(num_hids[0])+'_'
     best_vl = np.infty    
-    # K=1 #FIXED
-    num_samples =100;
-    count=0
-    smooth_count=0
+    k=0 #FIXED
+    constant=4
     
-
-    eps_gen = epsilon_gen
+    tr_costs, vl_costs, te_costs = [],[], []
+    
+    num_epoch = 10
+    
+    exec_start = timeit.default_timer()
+    
     for epoch in xrange(num_epoch+1):
-
-        costs=[[],[], []]
-        exec_start = timeit.default_timer()
-
-        eps_gen = get_epsilon(epsilon_gen, num_epoch*4, epoch) #gen lr decrease slower than dis lr
-
-        eps_dis = get_epsilon(epsilon_dis, num_epoch, epoch)
-        
-        bk_eps_gen = eps_gen
-        
-        bk_eps_dis = eps_dis
-        
-        total_smooth_count= int(num_batch_train * 0.05)
 
         for batch_i in xrange(num_batch_train):
             
-            count+=1
+            costs=[[],[], []]
             
-            if count%50==0 and rank==0:
-                print 'count: %d' % count
-
+            if constant**k == batch_i+1: 
+                from base.utils import get_epsilon_decay
+                eps_dis = 0.1 * epsilon_dis * get_epsilon_decay(k+1, 100, constant)
+                k+=1
+                
+            cost_mnnd_i = mnnd_update(batch_i, lr=eps_dis, alpha=10)
+            costs[0].append(cost_mnnd_i)
             
-            def dcgan_update(batch_i, eps_gen, eps_dis):
-                
-                cost_gen_i = generator_update(lr=eps_gen)
-                cost_gen_i = generator_update(lr=eps_gen)
-                
-                data = hkl.load(train_filenames[batch_i]) / 255.
-                data = data.astype('float32').transpose([3,0,1,2])
-                # if epoch < num_epoch * 0.25 :
-#                     data = np.asarray(corrupt_input(rng, data, 0.3), dtype='float32')
-#                 elif epoch < num_epoch *0.5 :
-#                     data = np.asarray(corrupt_input(rng, data, 0.1), dtype='float32')
-                a,b,c,d = data.shape
-                data = data.reshape(a,b*c*d)
-                cost_test_i  = discriminator_update(data, lr=eps_dis)
-                cost_sample_i = 0
-                return cost_test_i, cost_sample_i, cost_gen_i
-                
-                
-            def gran_update(batch_i, eps_gen, eps_dis):
-                
+            if batch_i % 100 == 0 or batch_i < 3:
 
-                data = hkl.load(train_filenames[batch_i]) / 255.
-                data = data.astype('float32').transpose([3,0,1,2])
-                # if epoch < num_epoch * 0.25 :
-#                     data = np.asarray(corrupt_input(rng, data, 0.3), dtype='float32')
-#                 elif epoch < num_epoch *0.5 :
-#                     data = np.asarray(corrupt_input(rng, data, 0.1), dtype='float32')
-                a,b,c,d = data.shape
-                data = data.reshape(a,b*c*d)
+                costs_vl = [[],[],[]]
+                for batch_j in xrange(num_batch_valid):
+                    
+                    data = hkl.load(valid_filenames[batch_i]) / 255.
+                    data = data.astype('float32').transpose([3,0,1,2])
+                    a,b,c,d = data.shape
+                    data = data.reshape(a,b*c*d)
+                    
+                    cost_mnnd_vl_j = get_valid_cost(data)
+                    costs_vl[0].append(cost_mnnd_vl_j)
+            
+                costs_te = [[],[],[]]
+                for batch_j in xrange(num_batch_test):
+                    
+                    data = hkl.load(test_filenames[batch_i]) / 255.
+                    data = data.astype('float32').transpose([3,0,1,2])
+                    a,b,c,d = data.shape
+                    data = data.reshape(a,b*c*d)
+                    
+                    cost_mnnd_te_j = get_test_cost(data)
+                    costs_te[0].append(cost_mnnd_te_j)
+                
+                cost_mnnd_vl = np.mean(np.asarray(costs_vl[0]))
+                cost_mnnd_te = np.mean(np.asarray(costs_te[0]))
+                cost_mnnd_tr = np.mean(np.asarray(costs[0]))
 
-                cost_test_i  = discriminator_update(data, lr=eps_dis)
-                cost_sample_i = 0
+                tr_costs.append(cost_mnnd_tr)
+                vl_costs.append(cost_mnnd_vl)
+                te_costs.append(cost_mnnd_te)
+                print cost_mnnd_vl,
+                
+    print
+    
+    exec_finish = timeit.default_timer() 
+    if batch_i==0: print 'Exec Time %f ' % ( exec_finish - exec_start) 
+   
+    # print 'NND Tr: ', tr_costs
+    # print 'NND Vl: ', vl_costs
+    # print 'NND Te: ', te_costs
+
+    # save_path=os.environ['LOAD_PATH']
+    
+    # np.save(save_path+'/%s_mnnd_tr.npy' % mtype,tr_costs)
+    # np.save(save_path+'/%s_mnnd_te.npy' % mtype,te_costs)
+    # np.save(save_path+'/%s_mnnd_vl.npy' % mtype,vl_costs)
+
+    def find_farthest(array, value, sign):
         
-                if batch_i % K == 0:
-                    cost_gen_i = generator_update(lr=eps_gen)
-                    cost_gen_i = generator_update(lr=eps_gen)
-                else:
-                    cost_gen_i = 0
-                    
-                return cost_test_i, cost_sample_i, cost_gen_i
-                    
-            if mname=='GRAN': 
-                cost_test_i, cost_sample_i, cost_gen_i = gran_update(batch_i, eps_gen, eps_dis)
-            elif mname=='DCGAN':
-                cost_test_i, cost_sample_i, cost_gen_i = dcgan_update(batch_i, eps_gen, eps_dis)
-                
-                
-            costs[0].append(cost_test_i)
-            costs[1].append(cost_sample_i)
-            costs[2].append(cost_gen_i)
-            
-            
-            #6.swap
-            
-            if size>1 and epoch > int(num_epoch * swp_every):
-                                
-                # determine freq of swapping by multiplying total filenum by percentage param
-                swp_frq = int(num_epoch * num_batch_train * swp_every) 
+        # when sign is negative, the array is decreasing
 
-                if count% swp_frq==0:
-                    
-                    #9.gam2 with 100 samples
-                    
-                    num_samples=100
-                    samples = get_samples(num_samples).reshape((num_samples, 64*64*3))
-                    winner_ranks=do_gam2(model, samples, comm, avoid_ranks, save_file_path=save_path+'gam2-e'+str(epoch)+'.csv')
+        assert sign!=0
 
-                    pairs=get_pairs(comm, rng, avoid_ranks=avoid_ranks)
-                    #pairs = get_winner(comm, rng, winner_ranks, avoid_ranks=avoid_ranks)
-                    
-                    if someconfigs.indep_workers==False:
-                    
-                        swp_time = time.time()
+        idx = (sign*(np.array(array)-value)).argmax()
+        return array[idx], idx
+    if mtype=='iw':
+        sign=1
+    else:
+        sign=-1
+    vl_score, idx = find_farthest(vl_costs, vl_costs[0], sign=sign)
+    te_score = te_costs[idx]
+    vl_start = vl_costs[0]
 
-                        pair = exchanger.exchange(pairs)
-                        #pair = exchanger.replace(winner_ranks, pairs)
-                    
-                        swp_time = time.time() - swp_time
+    print os.environ['LOAD_EPOCH'], vl_start, vl_score, te_score
 
-                        print 'pair(%d,%d) .%d swp%.2f' % (pair[0],pair[1], count,swp_time)
-                        
-                        smooth_count=total_smooth_count
-                        
-                smooth_count, eps_gen, eps_dis=smooth_swp_lr(bk_eps_gen, bk_eps_dis, eps_gen, eps_dis, smooth_count, total_smooth_count)
-                        
-                        
-                        
-            
-            
-            #---
-
-        exec_finish = timeit.default_timer() 
-        print 'Exec Time %f ' % ( exec_finish - exec_start)
-
-
-        if epoch % 1 == 0 or epoch > 2 or epoch == (num_epoch-1):
-
-            costs_vl = [[],[],[]]
-            
-            for batch_j in xrange(num_batch_valid):
-                data = hkl.load(valid_filenames[batch_j]) / 255.
-                data = data.astype('float32').transpose([3,0,1,2]);
-                # if epoch < num_epoch * 0.25 :
-#                     data = np.asarray(corrupt_input(rng, data, 0.3), dtype='float32')
-#                 elif epoch < num_epoch * 0.5 :
-#                     data = np.asarray(corrupt_input(rng, data, 0.1), dtype='float32')
-                a,b,c,d = data.shape
-                data = data.reshape(a, b*c*d)
-                cost_test_vl_j, cost_gen_vl_j = get_valid_cost(data)
-                cost_sample_vl_j=0
-                costs_vl[0].append(cost_test_vl_j)
-                costs_vl[1].append(cost_sample_vl_j)
-                costs_vl[2].append(cost_gen_vl_j)
-            #    print("validation success !");
-
-            cost_test_vl = np.mean(np.asarray(costs_vl[0]))
-            cost_sample_vl = np.mean(np.asarray(costs_vl[1]))
-            cost_gen_vl = np.mean(np.asarray(costs_vl[2]))             
-
-            cost_test_tr = np.mean(np.asarray(costs[0]))
-            cost_sample_tr = np.mean(np.asarray(costs[1]))
-            cost_gen_tr = np.mean(np.asarray(costs[2]))
-
-            # cost_tr = cost_dis_tr+cost_gen_tr
-            # cost_vl = cost_dis_vl+cost_gen_vl
-
-            print 'Epoch %d, epsilon_gen %f5, epsilon_dis %f5, tr dis gen %g, %g, %g | vl disc gen %g, %g, %g '\
-                    % (epoch, eps_gen, eps_dis, cost_test_tr, cost_sample_vl, cost_gen_tr, cost_test_vl, cost_sample_tr, cost_gen_vl)
-
-            num_samples=100
-            samples = get_samples(num_samples).reshape((num_samples, 64*64*3))
-            display_images(np.asarray(samples * 255, dtype='int32'), \
-                                        tile_shape = (10,10), img_shape=(64,64), \
-                                        fname=save_path+'/' +str(size)+str(rank)+'-' + str(epoch))
-
-            # change the name to save to when new model is found.
-            if epoch%4==0 or epoch>(num_epoch-3) or epoch<2: 
-                save_the_weight(model, save_path+str(size)+str(rank)+'dcgan_'+ model_param_save + str(epoch))# + findex+ str(K)) 
-                
-            
-            #7.save curve
-
-            # date = '-%d-%d' % (time.gmtime()[1], time.gmtime()[2])
-            curve.append([cost_test_tr ,cost_test_vl , cost_sample_tr, cost_sample_vl, cost_gen_tr, cost_gen_vl ])
-
-            np.save(save_path+'curve'+str(size)+str(rank)+'.npy', np.array(curve))
-
-            #---
-            
-            #8.curve plot
+    return te_score
     
-            import matplotlib.pyplot as plt
-            colors = ['-r','--r', '-b', '--b','-m', '--m','-g', '--g']
-            labs = ['test_tr', 'test_vl','sample_tr', 'sample_vl', 'gen_tr', 'gen_vl']
-            arrays = np.array(curve).transpose()[:4] # only show dis
-            fig = plt.figure()
-
-            for index, cost in enumerate(arrays):
-                plt.plot(cost, colors[index], label=labs[index])
-    
-            plt.legend(loc='upper right')
-            plt.xlabel('epoch')
-            plt.ylabel('cost')
-            fig.savefig(save_path+'curve'+str(size)+str(rank)+'.png',format='png')
-            #plt.show()
-            plt.close('all')
-            #---
-                
-                
-                
-
-    num_samples=400
-    samples = get_samples(num_samples).reshape((num_samples, 3*64*64))
-    display_images(np.asarray(samples * 255, dtype='int32'), tile_shape=(20,20), img_shape=(64,64), \
-                            fname= save_path + '/' +str(size)+str(rank)+ '_'+ findex + str(K))
-
-    return model
+   
 
 
 def load_model(model_params, contF=True):
 
-    if not contF:
-        print '...Starting from the beginning'''
-        if mname=='GRAN':
-            model = GRAN(model_params, ltype)
-        elif mname=='DCGAN':
-            model = DCGAN(model_params, ltype)
-    else:
-        print '...Continuing from Last time'''
-        path_name = raw_input("Enter full path to the pre-trained model: ")
-        model = unpickle(path_name)
+    print '...Starting from the beginning'''
+    if mname=='GRAN':
+        model = GRAN(model_params, ltype)
+    elif mname=='DCGAN':
+        model = DCGAN(model_params, ltype)
+        
+    if contF:
+        
+        # print '...Continuing from Last time'''
+        from base.utils import unpickle
+        _model = unpickle(os.environ['LOAD_PATH'])
+        
+        np_gen_params= [param.get_value() for param in _model.gen_network.params]
+        np_dis_params= [param.get_value() for param in _model.dis_network.params]
+        
+        model.load(np_dis_params, np_gen_params, verbose=False)
 
     return model 
 
 
-def set_up_train(model, opt_params):
+def set_up_train(gan, mnnd, opt_params):
 
-    
     batch_sz, epsilon_gen, epsilon_dis, momentum, num_epoch, N, Nv, Nt, lam = opt_params
     if mname=='GRAN':
         opt_params    = batch_sz, epsilon_gen, epsilon_dis, momentum, num_epoch, N, Nv, Nt
@@ -277,14 +167,16 @@ def set_up_train(model, opt_params):
         opt_params    = batch_sz, epsilon_gen, epsilon_dis, momentum, num_epoch, N, Nv, Nt, input_width, input_height, input_depth
     compile_start = timeit.default_timer()
     opt           = Optimize(opt_params)
+    
+    import os
+    mnnd_update, get_valid_cost, get_test_cost \
+                    = opt.optimize_mnnf(gan.gen_network, mnnd, lam1=lam, mtype=os.environ['MTYPE'])
+                    
 
-    print ("Compiling...it may take a few minutes")
-    discriminator_update, generator_update, get_valid_cost, get_test_cost\
-                    = opt.optimize_gan_hkl(model, ltype)
     get_samples     = opt.get_samples(model)
     compile_finish = timeit.default_timer() 
-    print 'Compile Time %f ' % ( compile_finish - compile_start) 
-    return opt, get_samples, discriminator_update, generator_update, get_valid_cost, get_test_cost
+    # print 'Compile Time %f ' % ( compile_finish - compile_start) 
+    return opt, get_samples, mnnd_update, get_valid_cost, get_test_cost
 
 
 def main(opt_params, ganI_params, train_params, conv_params):
@@ -299,247 +191,200 @@ def main(opt_params, ganI_params, train_params, conv_params):
 
     model_params = [ganI_params, conv_params]
     ganI = load_model(model_params, contF)
-    opt, get_samples, discriminator_update, generator_update, get_valid_cost, get_test_cost\
-                                = set_up_train(ganI, opt_params)
-                                
-    #TODO: If you want to train your own model, comment out below section and set the model parameters below accordingly
-    ##################################################################################################
-#     num_samples=100
-    # fname='./figs/lsun/gran_lsun_samples500.pdf'
-    # samples = get_samples(num_samples).reshape((num_samples, 3*64*64))
-    # display_images(np.asarray(samples * 255, dtype='int32'), tile_shape=(10,10), img_shape=(64,64),fname=fname)
-    # print ("LSUN sample fetched and saved to " + fname)
-#     exit()
-    ###################################################################################################
-    theano_fns = [get_samples, discriminator_update, generator_update, get_valid_cost, get_test_cost]
-    num_batchs = [num_batch_train, num_batch_valid, num_batch_test]
-    lets_train(ganI, train_params, num_batchs, theano_fns, opt_params, model_params)
-
-if __name__ == '__main__':
     
-    import argparse
     
-    parser = argparse.ArgumentParser(description="main_dcgan")
-
-    parser.add_argument("-d","--device", type=str, default='cuda0',
-                     help="the theano context device to be used",
-                     required=True)
-    parser.add_argument("-w","--workers", type=int, default=1,
-                     help="how many workers",
-                     required=False)
-    parser.add_argument("-m","--mname", type=str, default='DCGAN',
-                     help="DCGAN OR GRAN?",
-                     required=False)         
-    parser.add_argument("-b","--combined", type=int, default=0,
-                     help="DCGAN and GRAN combined?",
-                     required=False)
-                             
-    parser.add_argument("-l","--ltype", type=str, default='gan',
-                     help="which gan type to be used in training",
-                     required=True)
-    parser.add_argument("-r","--rngseed", type=int, default=1234,
-                     help="which rng seed to be used in training",
-                     required=True)
-    
-    args = parser.parse_args()
-    
-    ltype=args.ltype
-    
-    #0.initialize MPI
-
-    from mpi4py import MPI
-    comm = MPI.COMM_WORLD
-    rank=comm.rank
-    size=comm.size
+    from convnet_cuda64 import convnet64
     import os
-    worker_id = os.getpid()
+    # print int(os.environ['CRI_KERN']), 'critic ckern'
+    conv_params[-1]=int(os.environ['CRI_KERN'])
     
-    sum_worker_id = comm.allreduce(worker_id)
-    #---
     
-    #1. parsing sys arguments
-
-    import sys
-    import base.subnets.layers.someconfigs as someconfigs
-    try:
-    
-        device=args.device #sys.argv[1]
-        someconfigs.indep_workers=args.workers #int(sys.argv[2])
-        mname=args.mname #str(sys.argv[3])
-    except:
-        print 'USAGE: python main.py [device] [indep_worker] [mname] [combined_f](optional)'
-        print 'example: device=cuda0, indep_worker=0, mname=GRAN'
-        raise
+    for mtype in ['ls', 'iw']:
         
-    if size>1:
-        try:
-            combined_f = args.combined #int(sys.argv[4])
-            if combined_f==1:
-                print 'Combined'
-        except:
-            combined_f=0
-            pass
+        os.environ['MTYPE']=mtype
     
-    # gran=0.2, dcgan=0.2, combined=0.2
-    swp_every=0.1 # swp every (num_epoch * num_batch_train * swp_every) iterations during training
-    assert swp_every<=0.5 # swp at lease twice before training ends
-    
-    someconfigs.clipg_dis=1
-    
-    assert mname in ['GRAN', 'DCGAN']
-    someconfigs.mname=mname
-    
-    if someconfigs.indep_workers==0:
-        someconfigs.indep_workers=False
-    else:
-        someconfigs.indep_workers=True
-    
-    indep = [rank,someconfigs.indep_workers]
-    
-    all_indep = comm.allgather(indep)
-    avoid_ranks = [ r for r, _indep in all_indep if _indep==True]
-    
-    
-    # #1.5 Split into subcomm
-    # if combined_f==1:
-    #     if mname=='GRAN':
-    #         color=1
-    #     elif mname=='DCGAN':
-    #         color=0
-    #     subcomm = comm.Split(color)
-    # #---
-    
-    
-    #2.initialize devices
-    if device.startswith('gpu'):
-        backend='cudandarray'
-        someconfigs.backend='cudandarray'
+        mnnd = convnet64(conv_params, ltype=os.environ['MTYPE']) #even complicated than disciminator used in train time
+        #from neural_networks import hidden_layer
+        #mnnd = hidden_layer(3072, 1, 'layer1') #single linear layer - simplest mode
+        opt, get_samples, mnnd_update, get_valid_cost, get_test_cost = set_up_train(ganI, mnnd, opt_params)
+        theano_fns = [get_samples, mnnd_update, get_valid_cost, get_test_cost]
+        num_batchs = [num_batch_train, num_batch_valid, num_batch_test]
         
-    else:
-        backend='gpuarray'
-        someconfigs.backend='gpuarray'
+        te_cost = train(ganI, train_params, num_batchs, theano_fns, opt_params, model_params)
 
-    gpuid=int(device[-1])
+        
+        if mtype=='ls':
+            te_score_ls = te_cost
+        elif mtype =='iw':
+            te_score_iw = te_cost
+        else:
+            te_score_js = te_cost
+        
+    mmd_te= mmd_is(ganI, train_params, num_batchs, theano_fns, opt_params, model_params)
+    
+    return te_score_ls, te_score_iw , mmd_te #, is_sam
 
-    if backend=='cudandarray':
+def mmd_is(ganI, train_params, num_batchs, theano_fns, opt_params, model_params, sample):
+    
+    ganI_params, conv_params = model_params 
+    batch_sz, epsilon_gen, epsilon_dis, momentum, num_epoch, N, Nv, Nt, lam = opt_params   
+    batch_sz, D, num_hids, rng, num_z, nkerns, ckern, num_channel, num_steps  = ganI_params
+    num_epoch, epoch_start, contF,train_filenames, valid_filenames, test_filenames = train_params 
+    num_batch_train, num_batch_valid, num_batch_test                        = num_batchs
+    get_samples, mnnd_update, get_valid_cost, get_test_cost = theano_fns
+    
+    
+    num_samples=5000
+    samples = get_samples(num_samples)
+    
+    # global train_set_np, test_set_np
+    
+    # ######
+#     # IS #
+#     ######
+#
+#     # print 'IS'
+#
+#     import main_resnet
+#     py_x = main_resnet.main(n=5, model=nnd_path+'/cifar10_deep_residual_model.npz', verbose=False)
+#
+#     # vl_pred = py_x(valid_set_np[0].reshape((Nv, 3,32,32)).astype('float32'))
+#     dist_y =[]
+#     for c in xrange(10):
+#         count_c = np.where(train_set_np[1] == c)[0].shape[0]
+#         dist_y.append(count_c)
+#     dist_y = np.asarray(dist_y)/float(train_set_np[1].shape[0])
+#
+#
+#     # RUN
+#
+#     sam_pred= py_x(samples)
+#
+#     #is_valid, _ = main_resnet.inception_score_from(vl_pred)
+#     # is_valid = np.mean(np.sum(vl_pred * np.log(vl_pred) - (vl_pred * np.log(dist_y )), axis=1))
+#
+#     #is_sample, _ = main_resnet.inception_score_from(sam_pred)
+#     is_sample = np.mean(np.sum(sam_pred * np.log(sam_pred) - (sam_pred * np.log(dist_y )), axis=1))
+#     # is_vl=np.exp(is_valid)
+#     is_sam=np.exp(is_sample)
+#
+#     # print 'CIFAR10 IS SCORE VL %f SAM %f' % (is_vl,is_sam)
+    
+        
+    #######    
+    # MMD #
+    #######
+    
+    # print 'MMD'
+    
+    from test.eval_gan_mmd import mix_rbf_mmd2
+    
+    bandwidths = [2.0, 5.0, 10.0, 20.0, 40.0, 80.0]
+    _samples = samples.reshape((num_samples, 64*64*3))
+    mmd_te_score = mix_rbf_mmd2(test_set_np[0], _samples, sigmas=bandwidths)
+    # mmd_vl_score = mix_rbf_mmd2(valid_set_np[0][:10000], _samples, sigmas=bandwidths)
+    
+    
+    return mmd_te_score #, is_sam
 
-        import pycuda.driver as drv
-        drv.init()
-        dev=drv.Device(gpuid)
-        ctx=dev.make_context()
 
-        import theano.sandbox.cuda
-        theano.sandbox.cuda.use(device)
+def run(rng_seed,ltype, mtype,load_path, load_epoch, verbose=False, ckernr=None, cri_ckern=None):
+    
+    assert ckernr!=None
+    #  ltype -> GAN LSGAN WGAN 
+    #    JS      0.4+-asdf
+    #    LS
+    #    WA
+    #    MMD 
+    #    IS
 
-        # import pycuda.gpuarray as gpuarray
-        # #import theano
-        # import theano.misc.pycuda_init
-        # import theano.misc.pycuda_utils
-    else:
-        import os
-        if 'THEANO_FLAGS' in os.environ:
-            raise ValueError('Use theanorc to set the theano config')
-        os.environ['THEANO_FLAGS'] = 'device={0}'.format(device)
-        import theano.gpuarray
-        ctx=theano.gpuarray.type.get_context(None)
-        # from pygpu import collectives
-    #---
-    
-    #3.use pid to make rng different for each worker batch shuffle
-    np_rng = np.random.RandomState(1234+rank) # only for shuflling files
-    import base.subnets.layers.utils as utils
-    utils.rng = np.random.RandomState(args.rngseed) # for init network and corrupt images
-    rng = utils.rng
-    
-    curve=[]
-    #---
-    
-    
-    # 3.0 import things after device setup
-    
-    import theano 
-    # import theano.sandbox.rng_mrg as RNG_MRG
-    # MRG = RNG_MRG.MRG_RandomStreams(rng.randint(2 ** 30))
-    if mname=='GRAN':
-        from base.optimize_gran import Optimize
-        from base.gran import GRAN
-    elif mname=='DCGAN':
-        from base.optimize_gan import Optimize
-        from base.dcgan import DCGAN
-    # from deconv import *
-    from base.utils import save_the_weight, save_the_env, get_epsilon, unpickle, corrupt_input
-    from base.util_cifar10 import display_images
-    
-    debug = sys.gettrace() is not None
-    if debug:
-        theano.config.optimizer='fast_compile'
-        theano.config.exception_verbosity='high'
-        theano.config.compute_test_value = 'warn'
-       
-    # 3.05 hyper params
-    
-    
-    
+
     ### MODEL PARAMS
+    ### MODEL PARAMS
+    # ltype       = sys.argv[3]
+    # mtype       = 'js'
+    # print 'ltype: ' + ltype
+    # print 'mtype: ' + mtype
+    mmdF        = False
+    nndF        = False
+
     # CONV (DISC)
     conv_num_hid= 100
-    num_channel = 3 # FIXED
-    num_class   = 1 # FIXED
-    D           = 64*64*3
-    kern = 128
+    num_channel = 3 #Fixed
+    num_class   = 1 #Fixed
+    D=64*64*3
+    kern=int(ckernr.split('_')[0])
+
+    ### OPT PARAMS
+    batch_sz    = 100
+    momentum    = 0.0 #Not Used
+    lam         = 0.0
+    
+    epsilon_dis = 0.0002
+    epsilon_gen = 0.0001
+    
+    # if mtype =='js' :
+    #     epsilon_dis = 0.0002
+    #     epsilon_gen = 0.0001
+    #     K=5 #FIXED
+    #     J=1
+    # elif mtype == 'ls':
+    #     epsilon_dis = 0.0002
+    #     epsilon_gen = 0.0001
+    #     K=5 #FIXED
+    #     J=1
+    # else:
+    #     epsilon_dis = 0.0002
+    #     epsilon_gen = 0.0001
+    #     K=2 #FIXED
+    #     J=1
 
     # ganI (GEN)
     filter_sz   = 4 #FIXED
     nkerns      = [1,8,4,2,1]
-    ckern       = 172
-    num_hid1    = nkerns[0]*ckern*filter_sz*filter_sz # FIXED.
-    num_steps   = 3 # time steps
-    num_z       = 100 
-
-    ### OPT PARAMS
-    batch_sz    = 100
-    if mname=='GRAN':
-        epsilon_dis = 0.0001 #halved both lr will give greyish lsun samples
-        epsilon_gen = 0.0002 #halved both lr will give greyish lsun samples
-    elif mname=='DCGAN':
-        
-        if ltype == 'gan':
-            epsilon_dis = 0.00005
-            epsilon_gen = 0.0001
-        elif ltype =='lsgan':
-            epsilon_dis = 0.0002
-            epsilon_gen = 0.0004
-        elif ltype =='wgan':
-            epsilon_dis = 0.0002
-            epsilon_gen = 0.0004
-            
-    momentum    = 0.0 #Not Used
-    lam1        = 0.000001 
+    ckern       = int(ckernr.split('_')[-1]) #20
+    num_hid1    = nkerns[0]*ckern*filter_sz*filter_sz #Fixed
+    num_z       = 100
 
     ### TRAIN PARAMS
-    if mname=='GRAN':
-        num_epoch   = 15
-    elif mname=='DCGAN':
-        num_epoch   = 36
-        input_width = 64
-        input_height = 64
-        input_depth = 3
-    epoch_start = 0 
-    contF       = False #continue flag. usually FIXED
+    num_epoch   = 10
+    epoch_start = 0 #Fixed
+    contF       = True #Fixed
+    
+    num_hids     = [num_hid1]
+    
+    input_width = 64
+    input_height = 64
+    input_depth = 3
+    
     N=1000 
     Nv=N 
     Nt=N #Dummy variable
-
-
+    
     ### SAVE PARAM
     model_param_save = 'num_hid%d.batch%d.eps_dis%g.eps_gen%g.num_z%d.num_epoch%g.lam%g.ts%d.data.100_CONV_lsun'%(conv_num_hid,batch_sz, epsilon_dis, epsilon_gen, num_z, num_epoch, lam1, num_steps)
-    #model_param_save = 'gran_param_lsun_ts%d.save' % num_steps
+
     
-    if someconfigs.indep_workers==0:
-        print 'rank%d %s swap every %.2f epochs' % (rank, mname, swp_every*num_epoch)
+    # device=sys.argv[1]
+    import os
+    os.environ['RNG_SEED'] = str(rng_seed)
+    os.environ['LOAD_PATH'] = load_path
+    os.environ['LOAD_EPOCH'] = str(load_epoch)
+    os.environ['LTYPE'] = ltype
+    # os.environ['MTYPE'] = mtype
+    try:
+        a=os.environ['CRI_KERN']
+    except:
+        if cri_ckern!=None: 
+            os.environ['CRI_KERN']=cri_ckern
+        else:
+            raise RuntimeError('cri_kern not provided')
     
+    import theano 
+    import theano.sandbox.rng_mrg as RNG_MRG
+    rng = np.random.RandomState(int(os.environ['RNG_SEED']))
+    MRG = RNG_MRG.MRG_RandomStreams(rng.randint(2 ** 30))
     
-    #3.1 create save path
     
     import pwd
     username = pwd.getpwuid(os.geteuid()).pw_name
@@ -552,29 +397,8 @@ if __name__ == '__main__':
     #     save_path = '/work/imj/gap/dcgans/lsun/dcgan4_100swap_30epoch_noise'
     if username=='mahe6562':
         datapath = '/scratch/g/gwtaylor/mahe6562/data/lsun/bedroom/preprocessed_toy_100/'
-        if mname=='GRAN':
-            save_path = '/scratch/g/gwtaylor/mahe6562/gap/gran-lsun/'
-        elif mname=='DCGAN':
-            save_path = '/scratch/g/gwtaylor/mahe6562/gap/dcgan-lsun/'
-        if size>1 and combined_f==1:
-            save_path = '/scratch/g/gwtaylor/mahe6562/gap/combined-lsun/'
-            
-        import time
-        date = '%d-%d' % (time.gmtime()[1], time.gmtime()[2])
-            
-        # save_path+= date+ '-swp'+str(swp_every)+ '-'+str(size)+'-'+backend+'-%d/' % sum_worker_id
-        save_path+= date+ '-' + str(sum_worker_id) + '-' + ltype + '-' + str(args.rngseed) + '/' 
 
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
-            print 'create dir',save_path
 
-    #---
-    
-    # 3.2 save the env
-    
-    save_the_env(dir_to_save='../combined_par', path=save_path)
-    
     #---
     
     # store the filenames into a list.
@@ -588,8 +412,7 @@ if __name__ == '__main__':
     valid_filenames = sorted(glob.glob(datapath + 'val_hkl_b100_b_100/*' + '.hkl'))
     test_filenames = sorted(glob.glob(datapath + 'test_hkl_b100_b_100/*' + '.hkl'))
 
-    print 'num_hid%d.batch sz %d, epsilon_gen %g, epsilon_disc %g, num_z %d,  num_epoch %d, lambda %g, ckern %d' % \
-                                    (conv_num_hid, batch_sz, epsilon_gen, epsilon_dis, num_z, num_epoch, lam1, ckern)
+    
     num_hids     = [num_hid1]
     train_params = [num_epoch, epoch_start, contF, train_filenames, valid_filenames, test_filenames]
     opt_params   = [batch_sz, epsilon_gen, epsilon_dis,  momentum, num_epoch, N, Nv, Nt, lam1]    
@@ -597,4 +420,7 @@ if __name__ == '__main__':
     conv_params  = [conv_num_hid, D, num_class, batch_sz, num_channel, kern]
     book_keeping = main(opt_params, ganI_params, train_params, conv_params)
 
+    
+    te_score_ls, te_score_iw , mmd_te = main(opt_params, ganI_params, train_params, conv_params)
 
+    return te_score_ls, te_score_iw , mmd_te #, is_sam

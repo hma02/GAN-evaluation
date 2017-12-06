@@ -42,7 +42,6 @@ def train(model, train_params, num_batchs, theano_fns, opt_params, model_params,
     
     for epoch in xrange(num_epoch+1):
         
-        alpha=10  #1.0*(1+epoch*1.0/(num_epoch+1)*9)
         for batch_i in xrange(num_batch_train):
             costs=[[],[], []]
             
@@ -295,6 +294,7 @@ def run(rng_seed,ltype, mtype,load_path, load_epoch, sample=False, nclass=10, wh
     conv_num_hid= 100
     num_channel = 3 #Fixed
     num_class   = 1 #Fixed
+    D=64*64*3
     kern=int(ckernr.split('_')[0])
 
     ### OPT PARAMS
@@ -323,7 +323,7 @@ def run(rng_seed,ltype, mtype,load_path, load_epoch, sample=False, nclass=10, wh
 
     # ganI (GEN)
     filter_sz   = 4 #FIXED
-    nkerns      = [8,4,2,3]
+    nkerns      = [1,8,4,2,1]
     ckern       = int(ckernr.split('_')[-1]) #20
     num_hid1    = nkerns[0]*ckern*filter_sz*filter_sz #Fixed
     num_z       = 100
@@ -332,10 +332,15 @@ def run(rng_seed,ltype, mtype,load_path, load_epoch, sample=False, nclass=10, wh
     num_epoch   = 10
     epoch_start = 0 #Fixed
     contF       = True #Fixed
-    D=32*32*3
+    
     num_hids     = [num_hid1]
+    
+    input_width = 64
+    input_height = 64
+    input_depth = 3
+    
     ### SAVE PARAM
-    #model_param_save = 'gan_batch%d.epsilon_dis%g.epsilon_gen%g.num_z%d.num_epoch%d_cifar10'%(batch_sz, epsilon_dis, epsilon_gen, num_z, num_epoch)
+    model_param_save = 'num_hid%d.batch%d.eps_dis%g.eps_gen%g.num_z%d.num_epoch%g.lam%g.ts%d.data.100_CONV_lsun'%(conv_num_hid,batch_sz, epsilon_dis, epsilon_gen, num_z, num_epoch, lam1, num_steps)
 
     
     # device=sys.argv[1]
