@@ -154,6 +154,13 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
     count=0
     smooth_count=0
     
+    
+    train_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_train_64x64'
+    valid_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_val_64x64'
+    from input_provider import ImageProvider
+    p_train = ImageProvider(train_lmdb,batch_sz)
+    p_valid = ImageProvider(valid_lmdb,batch_sz)
+    
 
     eps_gen = epsilon_gen
     for epoch in xrange(num_epoch+1):
@@ -171,7 +178,7 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
         
         total_smooth_count= int(num_batch_train * 0.05)
 
-        for batch_i in xrange(num_batch_train):
+        for batch_i in xrange(p_train.num_batches):
             
             count+=1
             
@@ -184,14 +191,16 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
 
                 for k in range(K):
                     
-                    if k==0:
-                        filename = train_filenames[batch_i]
-                    else:
-                        import random
-                        filename = random.choice(train_filenames)
-                        
-                    data = hkl.load(filename) / 255.
-                    data = data.astype('float32').transpose([3,0,1,2])
+                    # if k==0:
+                    #     filename = train_filenames[batch_i]
+                    # else:
+                    #     import random
+                    #     filename = random.choice(train_filenames)    
+                    # data = hkl.load(filename) / 255.
+                    # data = data.astype('float32').transpose([3,0,1,2])
+                    
+                    data = p_train.next()/ 255.
+                    data = data.astype('float32')
                     a,b,c,d = data.shape
                     data = data.reshape(a,b*c*d)
                 
@@ -287,9 +296,12 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
 
             costs_vl = [[],[],[]]
             
-            for batch_j in xrange(num_batch_valid):
-                data = hkl.load(valid_filenames[batch_j]) / 255.
-                data = data.astype('float32').transpose([3,0,1,2]);
+            for batch_j in xrange(p_valid.num_batches):
+                # data = hkl.load(valid_filenames[batch_j]) / 255.
+                # data = data.astype('float32').transpose([3,0,1,2]);
+                
+                data = p_valid.next()/ 255.
+                data = data.astype('float32')
                 # if epoch < num_epoch * 0.25 :
 #                     data = np.asarray(corrupt_input(rng, data, 0.3), dtype='float32')
 #                 elif epoch < num_epoch * 0.5 :
