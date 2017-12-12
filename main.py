@@ -181,19 +181,28 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
             
             def dcgan_update(batch_i, eps_gen, eps_dis):
                 
-                cost_gen_i = generator_update(lr=eps_gen)
-                cost_gen_i = generator_update(lr=eps_gen)
+
+                for k in range(K):
+                    
+                    if k==0:
+                        filename = train_filenames[batch_i]
+                    else:
+                        import random
+                        filename = random.choice(train_filenames)
+                        
+                    data = hkl.load(filename) / 255.
+                    data = data.astype('float32').transpose([3,0,1,2])
+                    a,b,c,d = data.shape
+                    data = data.reshape(a,b*c*d)
                 
-                data = hkl.load(train_filenames[batch_i]) / 255.
-                data = data.astype('float32').transpose([3,0,1,2])
-                # if epoch < num_epoch * 0.25 :
-#                     data = np.asarray(corrupt_input(rng, data, 0.3), dtype='float32')
-#                 elif epoch < num_epoch *0.5 :
-#                     data = np.asarray(corrupt_input(rng, data, 0.1), dtype='float32')
-                a,b,c,d = data.shape
-                data = data.reshape(a,b*c*d)
-                cost_test_i  = discriminator_update(data, lr=eps_dis)
-                cost_sample_i = 0
+                    cost_test_i  = discriminator_update(data, lr=eps_dis)
+                    cost_sample_i = 0
+                
+                for j in range(J):
+                    cost_gen_i = generator_update(lr=eps_gen)
+
+                
+                
                 return cost_test_i, cost_sample_i, cost_gen_i
                 
                 
@@ -593,12 +602,12 @@ if __name__ == '__main__':
     num_channel = 3 # FIXED
     num_class   = 1 # FIXED
     D           = 64*64*3
-    kern = 128
+    kern = 172
 
     # ganI (GEN)
     filter_sz   = 4 #FIXED
-    nkerns      = [1,8,4,2,1]
-    ckern       = 172
+    nkerns      = [8,4,2,1,3]
+    ckern       = 128
     num_hid1    = nkerns[0]*ckern*filter_sz*filter_sz # FIXED.
     num_steps   = 3 # time steps
     num_z       = 100 
@@ -612,13 +621,18 @@ if __name__ == '__main__':
         
         if ltype == 'gan':
             epsilon_dis = 0.00005
-            epsilon_gen = 0.0001
+            epsilon_gen = 0.00005
+            J=1
+            K=1
         elif ltype =='lsgan':
-            epsilon_dis = 0.0002
-            epsilon_gen = 0.0004
+            epsilon_dis = 0.00005
+            epsilon_gen = 0.00005
+            J=1
+            K=1
         elif ltype =='wgan':
             epsilon_dis = 0.0002
             epsilon_gen = 0.0004
+            raise ValueError('work on lsgan only for now')
             
     momentum    = 0.0 #Not Used
     lam1        = 0.000001 
@@ -627,7 +641,7 @@ if __name__ == '__main__':
     if mname=='GRAN':
         num_epoch   = 15
     elif mname=='DCGAN':
-        num_epoch   = 36
+        num_epoch   = 100
         input_width = 64
         input_height = 64
         input_depth = 3
