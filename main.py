@@ -26,118 +26,9 @@ import gzip
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-
-def do_gam2(model, samples, comm, avoid_ranks, save_file_path='./gam2.csv'):
-    
-    rank=comm.rank
-    size=comm.size
-    #9.gam2 with 100 samples
-
-    gam2=True
-    
-    winner_rank=None
-    
-    if gam2:
-        
-        from base.gam2 import gam2
-
-        M = gam2(model, samples, comm)
-        
-        if rank==0:
-            np.savetxt(save_file_path, M, delimiter=",", fmt='%.3f') # save to a csv file
-        
-        n = M.shape[0]
-        
-        for i in range(n):
-            
-            M[i][i]=0
-            
-        ranking_arr = np.sum(M,axis=0)
-        
-        winner_ranks = ranking_arr.argsort()[::-1].tolist()
-        
-        if rank==0 and size>=2: 
-            print 'winners all: %d %d ...' % (winner_ranks[0], winner_ranks[1])
-            
-        for avoid in avoid_ranks: 
-            winner_ranks.remove(avoid)
-        
-        winner_ranks = winner_ranks[:2] # get the highest two scores
-        
-        if rank==0 and size>=2:
-            print 'winners gap: %d %d ...' % (winner_ranks[0], winner_ranks[1])
-        
-    return winner_ranks
-    
-def smooth_swp_lr(bk_eps_gen, bk_eps_dis, eps_gen, eps_dis, smooth_count, total_smooth_count):
-    
-    if smooth_count==0:
-        
-        pass
-        
-    else:
-        
-        # for _rank in range(size):
-#             if _rank not in avoid_ranks:
-#                 print 'smoothing %.6f %.6f' % (eps_gen,eps_dis)
-#                 break
-        
-        smooth_count = smooth_count-1
-        
-        eps_gen = bk_eps_gen* (1+0.3/(total_smooth_count-smooth_count+0.3))
-        
-        eps_dis = bk_eps_dis* (1-0.3/(total_smooth_count-smooth_count+0.6))
-    
-    return smooth_count, eps_gen, eps_dis
-            
-def do_tsne():
-    
-    #9.t-SNE plot with 100 samples, spawning a child process from rank0 for doing this
-    
-    tsne=False
-    
-    if tsne and gam2:
-        
-        pass
-        
-        from base.tsne import tsne
-        
-        tsne_list = [data]
-        tsne_list.extend(sample_list)
-        
-        if rank==0: tsne(tsne_list)
     
 
 def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_params):
-
-    
-    #5. initialize exchanger
-    if size>1:
-        
-        if someconfigs.backend=='gpuarray':
-            from base.swp import Exch_swap_gpuarray, get_pairs, get_winner
-    
-            exchanger = Exch_swap_gpuarray(comm)
-            exchanger.prepare(ctx, model.dis_network.params) #only swap the dis params
-            
-        elif someconfigs.backend=='cudandarray':
-            from base.swp import Exch_swap_cudandarray, get_pairs, get_winner
-            
-            exchanger = Exch_swap_cudandarray(comm)
-            exchanger.prepare(ctx,drv,model.dis_network.params) #only swap the dis params
-        else:
-            raise ValueError('wrong backend: %s' % someconfigs.backend )
-        
-    # print '=============='
-    # for param in model.dis_network.params:
-    #     print param.get_value().shape
-    #
-    # print '=============='
-    # for param in model.gen_network.params:
-    #     print param.get_value().shape
-    # print '=============='
-    
-    #---
         
     ganI_params, conv_params = model_params 
     batch_sz, epsilon_gen, epsilon_dis, momentum, num_epoch, N, Nv, Nt, lam = opt_params   
@@ -146,6 +37,15 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
     num_batch_train, num_batch_valid, num_batch_test                        = num_batchs
     get_samples, discriminator_update, generator_update, get_valid_cost, get_test_cost = theano_fns
     
+    
+    def save_gen_image(num_samples, fname):
+    
+        h = np.sqrt(num_samples).astype('int')
+        
+        samples = get_samples(num_samples).reshape((num_samples, 3*64*64))
+        display_images(np.asarray(samples * 255, dtype='int32'), tile_shape=(h,h), img_shape=(64,64),fname=fname)
+        
+        
     print '...Start Training'
     findex= str(num_hids[0])+'_'
     best_vl = np.infty    
@@ -160,6 +60,15 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
     from input_provider import ImageProvider
     p_train = ImageProvider(train_lmdb,batch_sz)
     p_valid = ImageProvider(valid_lmdb,batch_sz)
+    
+    for i in range(1):
+        
+        samples = p_train.next().reshape((num_samples, 64*64*3))
+        display_images(np.asarray(samples, dtype='int32'), \
+                                    tile_shape = (10,10), img_shape=(64,64), \
+                                    fname=save_path+'/data'+str(i))
+                                    
+    save_gen_image(100, save_path+'/initial_model')
     
 
     eps_gen = epsilon_gen
@@ -182,8 +91,10 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
             
             count+=1
             
-            if count%50==0 and rank==0:
+            if count%2000==0 or count<=2 or count>= p_train.num_batches-2:
                 print 'count: %d' % count
+                
+                save_gen_image(100, save_path+'/epoch'+ str(epoch)+'-iter' +str(count))
 
             
             def dcgan_update(batch_i, eps_gen, eps_dis):
@@ -199,7 +110,7 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
                     # data = hkl.load(filename) / 255.
                     # data = data.astype('float32').transpose([3,0,1,2])
                     
-                    data = p_train.next()/ 255.
+                    data = p_train.next()/ 255.  # bc01
                     data = data.astype('float32')
                     a,b,c,d = data.shape
                     data = data.reshape(a,b*c*d)
@@ -248,45 +159,6 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
             costs[1].append(cost_sample_i)
             costs[2].append(cost_gen_i)
             
-            
-            #6.swap
-            
-            if size>1 and epoch > int(num_epoch * swp_every):
-                                
-                # determine freq of swapping by multiplying total filenum by percentage param
-                swp_frq = int(num_epoch * num_batch_train * swp_every) 
-
-                if count% swp_frq==0:
-                    
-                    #9.gam2 with 100 samples
-                    
-                    num_samples=100
-                    samples = get_samples(num_samples).reshape((num_samples, 64*64*3))
-                    winner_ranks=do_gam2(model, samples, comm, avoid_ranks, save_file_path=save_path+'gam2-e'+str(epoch)+'.csv')
-
-                    pairs=get_pairs(comm, rng, avoid_ranks=avoid_ranks)
-                    #pairs = get_winner(comm, rng, winner_ranks, avoid_ranks=avoid_ranks)
-                    
-                    if someconfigs.indep_workers==False:
-                    
-                        swp_time = time.time()
-
-                        pair = exchanger.exchange(pairs)
-                        #pair = exchanger.replace(winner_ranks, pairs)
-                    
-                        swp_time = time.time() - swp_time
-
-                        print 'pair(%d,%d) .%d swp%.2f' % (pair[0],pair[1], count,swp_time)
-                        
-                        smooth_count=total_smooth_count
-                        
-                smooth_count, eps_gen, eps_dis=smooth_swp_lr(bk_eps_gen, bk_eps_dis, eps_gen, eps_dis, smooth_count, total_smooth_count)
-                        
-                        
-                        
-            
-            
-            #---
 
         exec_finish = timeit.default_timer() 
         print 'Exec Time %f ' % ( exec_finish - exec_start)
@@ -329,12 +201,6 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
             print 'Epoch %d, epsilon_gen %f5, epsilon_dis %f5, tr dis gen %g, %g, %g | vl disc gen %g, %g, %g '\
                     % (epoch, eps_gen, eps_dis, cost_test_tr, cost_sample_vl, cost_gen_tr, cost_test_vl, cost_sample_tr, cost_gen_vl)
 
-            num_samples=100
-            samples = get_samples(num_samples).reshape((num_samples, 64*64*3))
-            display_images(np.asarray(samples * 255, dtype='int32'), \
-                                        tile_shape = (10,10), img_shape=(64,64), \
-                                        fname=save_path+'/' +str(size)+str(rank)+'-' + str(epoch))
-
             # change the name to save to when new model is found.
             if epoch%4==0 or epoch>(num_epoch-3) or epoch<2: 
                 save_the_weight(model, save_path+str(size)+str(rank)+'dcgan_'+ model_param_save + str(epoch))# + findex+ str(K)) 
@@ -367,14 +233,8 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
             #plt.show()
             plt.close('all')
             #---
-                
-                
-                
-
-    num_samples=400
-    samples = get_samples(num_samples).reshape((num_samples, 3*64*64))
-    display_images(np.asarray(samples * 255, dtype='int32'), tile_shape=(20,20), img_shape=(64,64), \
-                            fname= save_path + '/' +str(size)+str(rank)+ '_'+ findex + str(K))
+                                
+    save_gen_image(400, save_path + '/' +str(size)+str(rank)+ '_'+ findex + str(K))
 
     return model
 
