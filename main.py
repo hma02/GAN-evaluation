@@ -67,10 +67,7 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
         display_images(np.asarray(samples, dtype='int32'), \
                                     tile_shape = (10,10), img_shape=(64,64), \
                                     fname=save_path+'/data'+str(i))
-                                    
-    save_gen_image(100, save_path+'/initial_model')
     
-
     eps_gen = epsilon_gen
     for epoch in xrange(num_epoch+1):
 

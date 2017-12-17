@@ -85,17 +85,12 @@ if __name__=='__main__':
                             help="the theano context device to be used",
                             required=True)
                             
-    parser.add_argument("-s","--seg", type=str, default=0,
-                            help="which segement of sample_file_list to work on",
-                            required=True)
-                            
-                            
     args = parser.parse_args()
                             
                             
     import os
     device=args.device
-    seg=int(args.seg)
+
     backend='cudandarray' if device.startswith('gpu') else 'gpuarray'
     os.environ['THEANO_BACKEND'] = backend
 
@@ -127,11 +122,13 @@ if __name__=='__main__':
     
     sample_list, ckernr_list = get_test_list()
     
-    for fold_index, fold, ckernr in enumerate(zip(sample_list,ckernr_list)):
+    
+    
+    for fold_index, (fold, ckernr) in enumerate(zip(sample_list,ckernr_list)):
         
         load_path =  fold
         
-        load_epoch = 6
+        load_epoch = 4
         
         ltype=fold.split('-')[-2]
         
@@ -145,8 +142,11 @@ if __name__=='__main__':
         load_path_file = load_path +'/'+ \
         '10dcgan_num_hid100.batch100.eps_dis5e-05.eps_gen5e-05.num_z100.num_epoch100.lam1e-06.ts3.data.100_CONV_lsun'+str(load_epoch)+'.save'
         
-        assert os.path.isfile(load_path_file)==True
-        
+        try:
+            assert os.path.isfile(load_path_file)
+        except:
+            print load_path_file
+            raise
         rng_seed=1234
         
         mtype=None

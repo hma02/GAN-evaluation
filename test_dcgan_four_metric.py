@@ -35,12 +35,10 @@ def train(model, train_params, num_batchs, theano_fns, opt_params, model_params)
     batch_sz, D, num_hids, rng, num_z, nkerns, ckern, num_channel, num_steps= ganI_params
     num_epoch, epoch_start, contF, train_filenames, valid_filenames, test_filenames = train_params 
     num_batch_train, num_batch_valid, num_batch_test                        = num_batchs
-    get_samples, discriminator_update, generator_update, get_valid_cost, get_test_cost = theano_fns
+    get_samples, mnnd_update, get_valid_cost, get_test_cost = theano_fns
     
+    mtype = os.environ['MTYPE']
     assert(mtype!=None and mtype!='')
-    
-    
-    
     
     train_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_train_64x64'
     valid_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_val_64x64'
@@ -82,7 +80,7 @@ def train(model, train_params, num_batchs, theano_fns, opt_params, model_params)
             costs[0].append(cost_mnnd_i)
             
             
-            if batch_i % 100 == 0 or batch_i < 3:
+            if batch_i % 2000 == 0 or batch_i < 3 or batch_i>= p_train.num_batches-2:
 
                 costs_vl = [[],[],[]]
                 for batch_j in xrange(p_valid.num_batches):
@@ -151,13 +149,14 @@ def train(model, train_params, num_batchs, theano_fns, opt_params, model_params)
     return te_score
 
 
-def load_model(model_params, contF=True):
+def load_model(model_params, mname='DCGAN',  contF=True ):
 
     print '...Starting from the beginning'''
     if mname=='GRAN':
-        model = GRAN(model_params, ltype)
+        model = GRAN(model_params, ltype='gan')
     elif mname=='DCGAN':
-        model = DCGAN(model_params, ltype)
+        from base.dcgan import DCGAN 
+        model = DCGAN(model_params, ltype='gan')
         
     if contF:
         
@@ -173,19 +172,19 @@ def load_model(model_params, contF=True):
     return model 
 
 
-def set_up_train(gan, mnnd, opt_params):
+def set_up_train(model, mnnd, opt_params, mname='DCGAN'):
 
     batch_sz, epsilon_gen, epsilon_dis, momentum, num_epoch, N, Nv, Nt, lam = opt_params
-    if mname=='GRAN':
-        opt_params    = batch_sz, epsilon_gen, epsilon_dis, momentum, num_epoch, N, Nv, Nt
-    elif mname=='DCGAN':
-        opt_params    = batch_sz, epsilon_gen, epsilon_dis, momentum, num_epoch, N, Nv, Nt, input_width, input_height, input_depth
+
+    opt_params    = batch_sz, epsilon_gen, epsilon_dis, momentum, num_epoch, N, Nv, Nt
     compile_start = timeit.default_timer()
+    
+    from base.optimize_gan import Optimize
     opt           = Optimize(opt_params)
     
     import os
     mnnd_update, get_valid_cost, get_test_cost \
-                    = opt.optimize_mnnf(gan.gen_network, mnnd, lam1=lam, mtype=os.environ['MTYPE'])
+                    = opt.optimize_mnnf(model.gen_network, mnnd, lam1=lam, mtype=os.environ['MTYPE'])
                     
 
     get_samples     = opt.get_samples(model)
@@ -205,10 +204,10 @@ def main(opt_params, ganI_params, train_params, conv_params):
     num_batch_test  = len(test_filenames)
 
     model_params = [ganI_params, conv_params]
-    ganI = load_model(model_params, contF)
+    ganI = load_model(model_params,mname='DCGAN', contF=True)
     
     
-    from convnet_cuda64 import convnet64
+    from base.subnets.convnet_cuda64 import convnet64
     import os
     # print int(os.environ['CRI_KERN']), 'critic ckern'
     conv_params[-1]=int(os.environ['CRI_KERN'])
@@ -306,6 +305,15 @@ def mmd_is(ganI, train_params, num_batchs, theano_fns, opt_params, model_params,
 def run(rng_seed,ltype, mtype,load_path, load_epoch, verbose=False, ckernr=None, cri_ckern=None):
     
     assert ckernr!=None
+    
+    
+    np_rng = np.random.RandomState(rng_seed) # only for shuflling files
+    import base.subnets.layers.utils as utils
+    import base.subnets.layers.someconfigs as someconfigs
+    someconfigs.backend='gpuarray'
+    utils.rng = np.random.RandomState(rng_seed) # for init network and corrupt images
+    rng = utils.rng
+    
     #  ltype -> GAN LSGAN WGAN 
     #    JS      0.4+-asdf
     #    LS
@@ -359,10 +367,13 @@ def run(rng_seed,ltype, mtype,load_path, load_epoch, verbose=False, ckernr=None,
     nkerns      = [8,4,2,1,3]
     ckern       = int(ckernr.split('_')[-1]) #20
     num_hid1    = nkerns[0]*ckern*filter_sz*filter_sz #Fixed
+    num_steps   = 3 # time steps
     num_z       = 100
 
+
+    lam1        = 0.000001 
     ### TRAIN PARAMS
-    num_epoch   = 10
+    num_epoch   = 2
     epoch_start = 0 #Fixed
     contF       = True #Fixed
     
@@ -415,15 +426,15 @@ def run(rng_seed,ltype, mtype,load_path, load_epoch, verbose=False, ckernr=None,
 
 
     #---
-    
+   
     # store the filenames into a list.
     train_filenames = sorted(glob.glob(datapath + 'train_hkl_b100_b_100/*' + '.hkl'))
-    
+
     #4.shuffle train data order for each worker
     indices=np_rng.permutation(len(train_filenames))
     train_filenames=np.array(train_filenames)[indices].tolist()
     #---
-    
+
     valid_filenames = sorted(glob.glob(datapath + 'val_hkl_b100_b_100/*' + '.hkl'))
     test_filenames = sorted(glob.glob(datapath + 'test_hkl_b100_b_100/*' + '.hkl'))
 

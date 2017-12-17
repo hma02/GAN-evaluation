@@ -29,11 +29,10 @@ class Optimize():
     def __init__(self, opt_params):
 
         self.batch_sz, self.epsilon_gen, self.epsilon_dis, self.momentum, \
-                self.num_epoch, self.N, self.Nv, self.Nt, input_width, \
-                input_height, input_depth = opt_params  
-        self.shared_x = theano.shared(np.zeros((self.batch_sz, \
-                input_depth*input_width*input_height), dtype=theano.config.floatX),\
-                borrow=True) 
+                self.num_epoch, self.N, self.Nv, self.Nt = opt_params  
+        # self.shared_x = theano.shared(np.zeros((self.batch_sz, \
+        #         input_depth*input_width*input_height), dtype=theano.config.floatX),\
+        #         borrow=True)
         self.shared_lr_dis = theano.shared(np.float32(self.epsilon_dis), 'lr_dis')
         self.shared_lr_gen = theano.shared(np.float32(self.epsilon_gen), 'lr_gen')
 
@@ -195,10 +194,10 @@ class Optimize():
         i = T.iscalar('i'); 
         lr = T.fscalar('lr');
         alpha=T.fscalar('alpha')
-        Xu = T.matrix('X'); 
+        Xu = T.fmatrix('X'); 
 
         gen_samples  = gen.get_samples(self.batch_sz)#.reshape([-1,3072])
-        p_y__x1  = mnnd.propagate(Xu, atype='leaky').flatten()
+        p_y__x1  = mnnd.propagate(Xu, reshapeF=True, atype='leaky').flatten()
         p_y__x0  = mnnd.propagate(gen_samples, atype='leaky').flatten()
         #p_y__x1  = mnnd.propagate(Xu, atype='sigmoid')# reshapeF=True, atype='leaky').flatten()
         #p_y__x0  = mnnd.propagate(gen_samples, atype='sigmoid')#, atype='leaky').flatten()
@@ -233,7 +232,7 @@ class Optimize():
                 outputs=cost, updates=updates,
                 on_unused_input='ignore')
         get_valid_cost   = theano.function([Xu], outputs=cost)
-        get_test_cost   = theano.function([Xu], outputs=cost)
+        get_test_cost   = None #theano.function([Xu], outputs=cost)
 
         return mnnd_update, get_valid_cost, get_test_cost
         
