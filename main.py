@@ -256,10 +256,8 @@ def set_up_train(model, opt_params):
 
     
     batch_sz, epsilon_gen, epsilon_dis, momentum, num_epoch, N, Nv, Nt, lam = opt_params
-    if mname=='GRAN':
-        opt_params    = batch_sz, epsilon_gen, epsilon_dis, momentum, num_epoch, N, Nv, Nt
-    elif mname=='DCGAN':
-        opt_params    = batch_sz, epsilon_gen, epsilon_dis, momentum, num_epoch, N, Nv, Nt, input_width, input_height, input_depth
+
+    opt_params    = batch_sz, epsilon_gen, epsilon_dis, momentum, num_epoch, N, Nv, Nt
     compile_start = timeit.default_timer()
     opt           = Optimize(opt_params)
 
@@ -499,10 +497,11 @@ if __name__ == '__main__':
             J=1
             K=1
         elif ltype =='wgan':
-            epsilon_dis = 0.0002
-            epsilon_gen = 0.0004
-            raise ValueError('work on lsgan only for now')
-            
+            epsilon_dis = 0.00005
+            epsilon_gen = 0.00005
+            J=1
+            K=1
+
     momentum    = 0.0 #Not Used
     lam1        = 0.000001 
 
