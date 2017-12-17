@@ -88,7 +88,7 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
             
             count+=1
             
-            if count%2000==0 or count<=2 or count>= p_train.num_batches-2:
+            if count%2000==0 or count<=1 or count%p_train.num_batches>= p_train.num_batches-1:
                 print 'count: %d' % count
                 
                 save_gen_image(100, save_path+'/epoch'+ str(epoch)+'-iter' +str(count))
@@ -469,7 +469,7 @@ if __name__ == '__main__':
     num_channel = 3 # FIXED
     num_class   = 1 # FIXED
     D           = 64*64*3
-    kern = 172
+    kern = 128
 
     # ganI (GEN)
     filter_sz   = 4 #FIXED
