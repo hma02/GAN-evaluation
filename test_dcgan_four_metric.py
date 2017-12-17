@@ -39,6 +39,17 @@ def train(model, train_params, num_batchs, theano_fns, opt_params, model_params)
     
     assert(mtype!=None and mtype!='')
     
+    
+    
+    
+    train_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_train_64x64'
+    valid_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_val_64x64'
+    from input_provider import ImageProvider
+    p_train = ImageProvider(train_lmdb,batch_sz)
+    p_valid = ImageProvider(valid_lmdb,batch_sz)
+     
+     
+    
     print '...Start Testing'
     findex= str(num_hids[0])+'_'
     best_vl = np.infty    
@@ -53,7 +64,7 @@ def train(model, train_params, num_batchs, theano_fns, opt_params, model_params)
     
     for epoch in xrange(num_epoch+1):
 
-        for batch_i in xrange(num_batch_train):
+        for batch_i in xrange(p_train.num_batches):
             
             costs=[[],[], []]
             
@@ -62,40 +73,46 @@ def train(model, train_params, num_batchs, theano_fns, opt_params, model_params)
                 eps_dis = 0.1 * epsilon_dis * get_epsilon_decay(k+1, 100, constant)
                 k+=1
                 
-            cost_mnnd_i = mnnd_update(batch_i, lr=eps_dis, alpha=10)
+            data = p_train.next()/ 255.
+            data = data.astype('float32')
+            a,b,c,d = data.shape
+            data = data.reshape(a,b*c*d)
+                
+            cost_mnnd_i = mnnd_update(data, lr=eps_dis, alpha=10)
             costs[0].append(cost_mnnd_i)
+            
             
             if batch_i % 100 == 0 or batch_i < 3:
 
                 costs_vl = [[],[],[]]
-                for batch_j in xrange(num_batch_valid):
+                for batch_j in xrange(p_valid.num_batches):
                     
-                    data = hkl.load(valid_filenames[batch_i]) / 255.
-                    data = data.astype('float32').transpose([3,0,1,2])
+                    data = p_valid.next()/ 255.
+                    data = data.astype('float32')
                     a,b,c,d = data.shape
                     data = data.reshape(a,b*c*d)
                     
                     cost_mnnd_vl_j = get_valid_cost(data)
                     costs_vl[0].append(cost_mnnd_vl_j)
             
-                costs_te = [[],[],[]]
-                for batch_j in xrange(num_batch_test):
-                    
-                    data = hkl.load(test_filenames[batch_i]) / 255.
-                    data = data.astype('float32').transpose([3,0,1,2])
-                    a,b,c,d = data.shape
-                    data = data.reshape(a,b*c*d)
-                    
-                    cost_mnnd_te_j = get_test_cost(data)
-                    costs_te[0].append(cost_mnnd_te_j)
+                # costs_te = [[],[],[]]
+                # for batch_j in xrange(num_batch_test):
+                #
+                #     data = hkl.load(test_filenames[batch_i]) / 255.
+                #     data = data.astype('float32').transpose([3,0,1,2])
+                #     a,b,c,d = data.shape
+                #     data = data.reshape(a,b*c*d)
+                #
+                #     cost_mnnd_te_j = get_test_cost(data)
+                #     costs_te[0].append(cost_mnnd_te_j)
                 
                 cost_mnnd_vl = np.mean(np.asarray(costs_vl[0]))
-                cost_mnnd_te = np.mean(np.asarray(costs_te[0]))
+                # cost_mnnd_te = np.mean(np.asarray(costs_te[0]))
                 cost_mnnd_tr = np.mean(np.asarray(costs[0]))
 
                 tr_costs.append(cost_mnnd_tr)
                 vl_costs.append(cost_mnnd_vl)
-                te_costs.append(cost_mnnd_te)
+                # te_costs.append(cost_mnnd_te)
                 print cost_mnnd_vl,
                 
     print
@@ -126,14 +143,12 @@ def train(model, train_params, num_batchs, theano_fns, opt_params, model_params)
     else:
         sign=-1
     vl_score, idx = find_farthest(vl_costs, vl_costs[0], sign=sign)
-    te_score = te_costs[idx]
+    te_score = vl_score # te_costs[idx]
     vl_start = vl_costs[0]
 
     print os.environ['LOAD_EPOCH'], vl_start, vl_score, te_score
 
     return te_score
-    
-   
 
 
 def load_model(model_params, contF=True):
@@ -341,7 +356,7 @@ def run(rng_seed,ltype, mtype,load_path, load_epoch, verbose=False, ckernr=None,
 
     # ganI (GEN)
     filter_sz   = 4 #FIXED
-    nkerns      = [1,8,4,2,1]
+    nkerns      = [8,4,2,1,3]
     ckern       = int(ckernr.split('_')[-1]) #20
     num_hid1    = nkerns[0]*ckern*filter_sz*filter_sz #Fixed
     num_z       = 100

@@ -61,11 +61,19 @@ def retrieve_name(var):
 def get_test_list():
     
     sample_list = [
-        '12-5-3513-gan-1234',
-        '12-5-6047-gan-1234'
+        '12-12-75283-lsgan-1234', # 172_128
+        '12-12-75766-lsgan-1234', # 128_128
+        '12-12-76628-lsgan-1234'  # 256_256
     ]
     
-    return sample_list
+    ckernr_list = [
+        '172_128',
+        '128_128',
+        '256_256'   
+    ]
+    
+    return sample_list, ckernr_list
+    
     
 if __name__=='__main__':
     
@@ -117,30 +125,25 @@ if __name__=='__main__':
     # session= [name for name in names if name!='folds'][0]
     # print session
     
-    sample_list = get_test_list()
+    sample_list, ckernr_list = get_test_list()
     
-    for fold_index, fold in enumerate(sample_list):
+    for fold_index, fold, ckernr in enumerate(zip(sample_list,ckernr_list)):
         
         load_path =  fold
         
-        load_epoch = 36
+        load_epoch = 6
         
         ltype=fold.split('-')[-2]
         
-        ckernr = ['128','172']
-        
-        ckernr = '_'.join(ckernr)
+        # ckernr = ['128','172']
+        # ckernr = '_'.join(ckernr)
         
         # print load_path, load_epoch, ltype, ckernr
-        
-        folds=globals()['folds_%s_%s' % (ltype, ckernr)]
-        
-        assert (load_path in folds) == True
 
         load_path = save_path+'/'+ load_path
         
         load_path_file = load_path +'/'+ \
-        '10dcgan_num_hid100.batch100.eps_dis0.0002.eps_gen0.0004.num_z100.num_epoch36.lam1e-06.ts3.data.100_CONV_lsun'+str(load_epoch)+'.save'
+        '10dcgan_num_hid100.batch100.eps_dis5e-05.eps_gen5e-05.num_z100.num_epoch100.lam1e-06.ts3.data.100_CONV_lsun'+str(load_epoch)+'.save'
         
         assert os.path.isfile(load_path_file)==True
         
