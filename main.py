@@ -146,6 +146,12 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
     num_batch_train, num_batch_valid, num_batch_test                        = num_batchs
     get_samples, discriminator_update, generator_update, get_valid_cost, get_test_cost = theano_fns
     
+    train_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_train_64x64'
+    valid_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_val_64x64'
+    from input_provider import ImageProvider
+    p_train = ImageProvider(train_lmdb,batch_sz)
+    p_valid = ImageProvider(valid_lmdb,batch_sz)
+    
     print '...Start Training'
     findex= str(num_hids[0])+'_'
     best_vl = np.infty    
@@ -153,6 +159,20 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
     num_samples =100;
     count=0
     smooth_count=0
+    
+    def save_gen_image(num_samples, fname):
+    
+        h = np.sqrt(num_samples).astype('int')
+        
+        samples = get_samples(num_samples).reshape((num_samples, 3*64*64))
+        display_images(np.asarray(samples * 255, dtype='int32'), tile_shape=(h,h), img_shape=(64,64),fname=fname)
+        
+    for i in range(1):
+        
+        samples = p_train.next().reshape((num_samples, 64*64*3))
+        display_images(np.asarray(samples, dtype='int32'), \
+                                    tile_shape = (10,10), img_shape=(64,64), \
+                                    fname=save_path+'/data'+str(i))
     
 
     eps_gen = epsilon_gen
@@ -171,59 +191,30 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
         
         total_smooth_count= int(num_batch_train * 0.05)
 
-        for batch_i in xrange(num_batch_train):
+        for batch_i in xrange(p_train.num_batches):
             
-            count+=1
-            
-            if count%50==0 and rank==0:
+
+            if count%200==0 or count%p_train.num_batches>= p_train.num_batches-2:
                 print 'count: %d' % count
-
+                
+                save_gen_image(100, save_path+'/epoch'+ str(epoch)+'-iter' +str(count%p_train.num_batches))
+                
+            for k in range(K):
+                
+                count+=1
+                
+                data = p_train.next()/ 255.
+                data = data.astype('float32')
+                a,b,c,d = data.shape
+                data = data.reshape(a,b*c*d)
             
-            def dcgan_update(batch_i, eps_gen, eps_dis):
+                cost_test_i  = discriminator_update(data, lr=eps_dis)
+                
+                cost_sample_i = 0
+                
+            for j in range(J):
                 
                 cost_gen_i = generator_update(lr=eps_gen)
-                cost_gen_i = generator_update(lr=eps_gen)
-                
-                data = hkl.load(train_filenames[batch_i]) / 255.
-                data = data.astype('float32').transpose([3,0,1,2])
-                # if epoch < num_epoch * 0.25 :
-#                     data = np.asarray(corrupt_input(rng, data, 0.3), dtype='float32')
-#                 elif epoch < num_epoch *0.5 :
-#                     data = np.asarray(corrupt_input(rng, data, 0.1), dtype='float32')
-                a,b,c,d = data.shape
-                data = data.reshape(a,b*c*d)
-                cost_test_i  = discriminator_update(data, lr=eps_dis)
-                cost_sample_i = 0
-                return cost_test_i, cost_sample_i, cost_gen_i
-                
-                
-            def gran_update(batch_i, eps_gen, eps_dis):
-                
-
-                data = hkl.load(train_filenames[batch_i]) / 255.
-                data = data.astype('float32').transpose([3,0,1,2])
-                # if epoch < num_epoch * 0.25 :
-#                     data = np.asarray(corrupt_input(rng, data, 0.3), dtype='float32')
-#                 elif epoch < num_epoch *0.5 :
-#                     data = np.asarray(corrupt_input(rng, data, 0.1), dtype='float32')
-                a,b,c,d = data.shape
-                data = data.reshape(a,b*c*d)
-
-                cost_test_i  = discriminator_update(data, lr=eps_dis)
-                cost_sample_i = 0
-        
-                if batch_i % K == 0:
-                    cost_gen_i = generator_update(lr=eps_gen)
-                    cost_gen_i = generator_update(lr=eps_gen)
-                else:
-                    cost_gen_i = 0
-                    
-                return cost_test_i, cost_sample_i, cost_gen_i
-                    
-            if mname=='GRAN': 
-                cost_test_i, cost_sample_i, cost_gen_i = gran_update(batch_i, eps_gen, eps_dis)
-            elif mname=='DCGAN':
-                cost_test_i, cost_sample_i, cost_gen_i = dcgan_update(batch_i, eps_gen, eps_dis)
                 
                 
             costs[0].append(cost_test_i)
@@ -278,13 +269,9 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
 
             costs_vl = [[],[],[]]
             
-            for batch_j in xrange(num_batch_valid):
-                data = hkl.load(valid_filenames[batch_j]) / 255.
-                data = data.astype('float32').transpose([3,0,1,2]);
-                # if epoch < num_epoch * 0.25 :
-#                     data = np.asarray(corrupt_input(rng, data, 0.3), dtype='float32')
-#                 elif epoch < num_epoch * 0.5 :
-#                     data = np.asarray(corrupt_input(rng, data, 0.1), dtype='float32')
+            for batch_j in xrange(p_valid.num_batches):
+                data = p_valid.next()/ 255.
+                data = data.astype('float32')
                 a,b,c,d = data.shape
                 data = data.reshape(a, b*c*d)
                 cost_test_vl_j, cost_gen_vl_j = get_valid_cost(data)
@@ -307,12 +294,6 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
 
             print 'Epoch %d, epsilon_gen %f5, epsilon_dis %f5, tr dis gen %g, %g, %g | vl disc gen %g, %g, %g '\
                     % (epoch, eps_gen, eps_dis, cost_test_tr, cost_sample_vl, cost_gen_tr, cost_test_vl, cost_sample_tr, cost_gen_vl)
-
-            num_samples=100
-            samples = get_samples(num_samples).reshape((num_samples, 64*64*3))
-            display_images(np.asarray(samples * 255, dtype='int32'), \
-                                        tile_shape = (10,10), img_shape=(64,64), \
-                                        fname=save_path+'/' +str(size)+str(rank)+'-' + str(epoch))
 
             # change the name to save to when new model is found.
             if epoch%4==0 or epoch>(num_epoch-3) or epoch<2: 
@@ -347,13 +328,7 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
             plt.close('all')
             #---
                 
-                
-                
-
-    num_samples=400
-    samples = get_samples(num_samples).reshape((num_samples, 3*64*64))
-    display_images(np.asarray(samples * 255, dtype='int32'), tile_shape=(20,20), img_shape=(64,64), \
-                            fname= save_path + '/' +str(size)+str(rank)+ '_'+ findex + str(K))
+    save_gen_image(400, save_path + '/' +str(size)+str(rank)+ '_'+ findex + str(K))
 
     return model
 
@@ -609,16 +584,17 @@ if __name__ == '__main__':
         epsilon_dis = 0.0001 #halved both lr will give greyish lsun samples
         epsilon_gen = 0.0002 #halved both lr will give greyish lsun samples
     elif mname=='DCGAN':
-        
         if ltype == 'gan':
             epsilon_dis = 0.00005
             epsilon_gen = 0.0001
         elif ltype =='lsgan':
-            epsilon_dis = 0.0002
-            epsilon_gen = 0.0004
+            epsilon_dis = 0.00005
+            epsilon_gen = 0.00005
         elif ltype =='wgan':
-            epsilon_dis = 0.0002
-            epsilon_gen = 0.0004
+            epsilon_dis = 0.00005
+            epsilon_gen = 0.00005
+    J=1
+    K=2
             
     momentum    = 0.0 #Not Used
     lam1        = 0.000001 

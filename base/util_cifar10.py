@@ -80,7 +80,7 @@ def display_images(images, tile_shape=(10,10), img_shape=(32,32), fname=None):
     """
 
     DD = img_shape[0] * img_shape[1]
-    images = (images[:, 0:DD],images[:, DD:DD*2],images[:, DD*2:DD*3], None)
+    images = (images[:, DD*2:DD*3], images[:, DD:DD*2], images[:, 0:DD], None)
     x = tile_raster_images(images, img_shape=img_shape, \
      						tile_shape=tile_shape, tile_spacing=(1,1), output_pixel_vals=False, scale_rows_to_unit_interval=False)
 
