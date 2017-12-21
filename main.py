@@ -149,7 +149,7 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
     train_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_train_64x64'
     valid_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_val_64x64'
     from input_provider import ImageProvider
-    p_train = ImageProvider(train_lmdb,batch_sz,limit=900*batch_sz)
+    p_train = ImageProvider(train_lmdb,batch_sz)
     p_valid = ImageProvider(valid_lmdb,batch_sz)
     
     samples = p_train.next(100).reshape((100, 64*64*3))
