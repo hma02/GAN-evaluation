@@ -691,7 +691,12 @@ if __name__ == '__main__':
     
     # 3.2 save the env
     
-    save_the_env(dir_to_save='../combined_par', path=save_path)
+    with open('./paths.txt','w') as f:
+        string=os.path.realpath(__file__)+'\n'+save_path
+        f.write(string)
+    
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    save_the_env(dir_to_save=dir_path, path=save_path)
     
     #---
     
