@@ -48,12 +48,15 @@ class ImageProvider(object):
         
         self.env = lmdb.open(db_path, map_size=1099511627776,
                         max_readers=100, readonly=True)
-                        
-        num_images =  self.env.stat()['entries']
         
-        self.num_batches = num_images/batchsize
+        if limit<0:
+            num_images =  self.env.stat()['entries']
         
-        def image_provider(db_path=self.db_path,limit=limit):
+            self.num_batches = num_images/batchsize
+        else:
+            self.num_batches = limit/batchsize
+        
+        def image_provider(db_path=self.db_path):
     
             count=0
     
@@ -64,14 +67,13 @@ class ImageProvider(object):
                     
                     count+=1
                     
-                    if (count>limit and limit>0) or num_images-1==count:
+                    if count>self.num_batches*self.batchsize-2:
+                        # print 'returned at %d, %d, %d' % (count,self.num_batches, self.batchsize)
                         cursor.first()
                         count=0
-                        #print 'break'
-                        #break
-                      
-                    # if count%10==0:
-                    #     print '%d/%d = %.2f%%' % (count,num_images, count*100.0/num_images)
+                        
+                    # if count%5000==0:
+                    #     print '%d/%d = %.2f%%' % (count,self.num_batches*self.batchsize, count*100.0/(self.num_batches*self.batchsize))
                         
                     yield key, decode_from_val_to_img(val)
         
@@ -214,6 +216,25 @@ def main_inspect():
 
 if __name__ == '__main__':
     
-    main_inspect()
+    # main_inspect()
     
     # main_resize()
+    
+    batch_sz=100
+    train_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_train_64x64'
+    valid_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_val_64x64'
+    # from input_provider import ImageProvider
+    p_train = ImageProvider(train_lmdb,batch_sz,limit=900*batch_sz)
+    p_valid = ImageProvider(valid_lmdb,batch_sz)
+    
+    
+    for e in range(10):
+        
+        for batch_j in xrange(p_train.num_batches):
+            if batch_j%1000==0:
+                print 'batch', batch_j
+            data = p_train.next()/ 255.
+    
+        for batch_j in xrange(p_valid.num_batches):
+            print 'batch', batch_j
+            data = p_valid.next()/ 255.

@@ -146,6 +146,18 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
     num_batch_train, num_batch_valid, num_batch_test                        = num_batchs
     get_samples, discriminator_update, generator_update, get_valid_cost, get_test_cost = theano_fns
     
+    train_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_train_64x64'
+    valid_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_val_64x64'
+    from input_provider import ImageProvider
+    p_train = ImageProvider(train_lmdb,batch_sz,limit=900*batch_sz)
+    p_valid = ImageProvider(valid_lmdb,batch_sz)
+    
+    samples = p_train.next(100).reshape((100, 64*64*3))
+    display_images(np.asarray(samples, dtype='int32'), \
+                                tile_shape = (10,10), img_shape=(64,64), \
+                                fname=save_path+'/data')
+    
+     
     print '...Start Training'
     findex= str(num_hids[0])+'_'
     best_vl = np.infty    
@@ -171,21 +183,21 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
         
         total_smooth_count= int(num_batch_train * 0.05)
 
-        for batch_i in xrange(num_batch_train):
+        for batch_i in xrange(p_train.num_batches):
             
             count+=1
             
-            if count%50==0 and rank==0:
-                print 'count: %d' % count
+            if count%5000==0 and rank==0:
+                print 'batch: %d' % count
 
             
             def dcgan_update(batch_i, eps_gen, eps_dis):
                 
                 cost_gen_i = generator_update(lr=eps_gen)
                 cost_gen_i = generator_update(lr=eps_gen)
-                
-                data = hkl.load(train_filenames[batch_i]) / 255.
-                data = data.astype('float32').transpose([3,0,1,2])
+
+                data = p_train.next()/ 255.
+                data = data.astype('float32')
                 # if epoch < num_epoch * 0.25 :
 #                     data = np.asarray(corrupt_input(rng, data, 0.3), dtype='float32')
 #                 elif epoch < num_epoch *0.5 :
@@ -278,9 +290,9 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
 
             costs_vl = [[],[],[]]
             
-            for batch_j in xrange(num_batch_valid):
-                data = hkl.load(valid_filenames[batch_j]) / 255.
-                data = data.astype('float32').transpose([3,0,1,2]);
+            for batch_j in xrange(p_valid.num_batches):
+                data = p_valid.next()/ 255.
+                data = data.astype('float32')
                 # if epoch < num_epoch * 0.25 :
 #                     data = np.asarray(corrupt_input(rng, data, 0.3), dtype='float32')
 #                 elif epoch < num_epoch * 0.5 :
@@ -626,7 +638,7 @@ if __name__ == '__main__':
     if mname=='GRAN':
         num_epoch   = 15
     elif mname=='DCGAN':
-        num_epoch   = 36
+        num_epoch   = 100
         input_width = 64
         input_height = 64
         input_depth = 3
