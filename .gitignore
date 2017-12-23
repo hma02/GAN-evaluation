@@ -1,1 +1,6 @@
+screenlog.*
+*.pyc
 */*.pyc
+*/*/*.pyc
+*/*/*/*.pyc
+*.tar

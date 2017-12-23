@@ -28,7 +28,7 @@ from layers.utils import activation_fn_th, initialize_weight
 
 class convnet64():
 
-    def __init__ (self, model_params, nkerns=[3,1,2,4,8], ckern=172, filter_sizes=[5,5,5,5,5,4], ltype='gan'):
+    def __init__ (self, model_params, nkerns=[3,1,2,4,8], ckern=128, filter_sizes=[5,5,5,5,5,4], ltype='gan'):
         """Initializes the architecture of the discriminator"""
         
         self.ltype = ltype

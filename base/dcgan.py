@@ -75,16 +75,16 @@ class DCGAN():
         return self.gen_network.get_samples(num_examples)
 
 
-    def load(self, np_params_dis, np_params_gen):
+    def load(self, np_params_dis, np_params_gen, verbose=False):
 
-        print 'load gen'
+        if verbose: print 'load gen'
         for param, np_param in zip(self.gen_network.params, np_params_gen):
-            print param.get_value().shape, np_param.shape
+            if verbose: print param.get_value().shape, np_param.shape
             param.set_value(np_param)
 
-        print 'load disc' 
+        if verbose: print 'load disc' 
         for param, np_param in zip(self.dis_network.params, np_params_dis):
-            print param.get_value().shape, np_param.shape
+            if verbose: print param.get_value().shape, np_param.shape
             param.set_value(np_param)
 
 

@@ -199,7 +199,7 @@ class Optimize():
 
         gen_samples  = gen.get_samples(self.batch_sz)#.reshape([-1,3072])
         p_y__x1  = mnnd.propagate(Xu, atype='leaky').flatten()
-        p_y__x0  = mnnd.propagate(gen_samples, atype='leaky').flatten()
+        p_y__x0  = mnnd.propagate(gen_samples, reshapeF=True, atype='leaky').flatten()
         #p_y__x1  = mnnd.propagate(Xu, atype='sigmoid')# reshapeF=True, atype='leaky').flatten()
         #p_y__x0  = mnnd.propagate(gen_samples, atype='sigmoid')#, atype='leaky').flatten()
 
@@ -233,7 +233,7 @@ class Optimize():
                 outputs=cost, updates=updates,
                 on_unused_input='ignore')
         get_valid_cost   = theano.function([Xu], outputs=cost)
-        get_test_cost   = theano.function([Xu], outputs=cost)
+        get_test_cost   = None #theano.function([Xu], outputs=cost)
 
         return mnnd_update, get_valid_cost, get_test_cost
         

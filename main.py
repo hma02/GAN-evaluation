@@ -187,8 +187,81 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
             
             count+=1
             
-            if count%5000==0 and rank==0:
+            if count%2000==0 and rank==0:
                 print 'batch: %d' % count
+                
+            if count%2000==0:
+                
+                costs_vl = [[],[],[]]
+
+                for batch_j in xrange(p_valid.num_batches):
+                    data = p_valid.next()/ 255.
+                    data = data.astype('float32')
+                    # if epoch < num_epoch * 0.25 :
+    #                     data = np.asarray(corrupt_input(rng, data, 0.3), dtype='float32')
+    #                 elif epoch < num_epoch * 0.5 :
+    #                     data = np.asarray(corrupt_input(rng, data, 0.1), dtype='float32')
+                    a,b,c,d = data.shape
+                    data = data.reshape(a, b*c*d)
+                    cost_test_vl_j, cost_gen_vl_j = get_valid_cost(data)
+                    cost_sample_vl_j=0
+                    costs_vl[0].append(cost_test_vl_j)
+                    costs_vl[1].append(cost_sample_vl_j)
+                    costs_vl[2].append(cost_gen_vl_j)
+                #    print("validation success !");
+
+                cost_test_vl = np.mean(np.asarray(costs_vl[0]))
+                cost_sample_vl = np.mean(np.asarray(costs_vl[1]))
+                cost_gen_vl = np.mean(np.asarray(costs_vl[2]))             
+
+                cost_test_tr = np.mean(np.asarray(costs[0]))
+                cost_sample_tr = np.mean(np.asarray(costs[1]))
+                cost_gen_tr = np.mean(np.asarray(costs[2]))
+
+                # cost_tr = cost_dis_tr+cost_gen_tr
+                # cost_vl = cost_dis_vl+cost_gen_vl
+
+                print 'Epoch %d, count %d, epsilon_gen %f5, epsilon_dis %f5, tr dis gen %g, %g, %g | vl disc gen %g, %g, %g '\
+                        % (epoch, count, eps_gen, eps_dis, cost_test_tr, cost_sample_vl, cost_gen_tr, cost_test_vl, cost_sample_tr, cost_gen_vl)
+
+                num_samples=100
+                samples = get_samples(num_samples).reshape((num_samples, 64*64*3))
+                display_images(np.asarray(samples * 255, dtype='int32'), \
+                                            tile_shape = (10,10), img_shape=(64,64), \
+                                            fname=save_path+'/' + str(epoch) +'-'+ str(count))
+
+                #7.save curve
+
+                # date = '-%d-%d' % (time.gmtime()[1], time.gmtime()[2])
+                curve.append([cost_test_tr ,cost_test_vl , cost_sample_tr, cost_sample_vl, cost_gen_tr, cost_gen_vl ])
+
+                np.save(save_path+'curve'+str(size)+str(rank)+'.npy', np.array(curve))
+
+                #---
+
+                #8.curve plot
+
+                import matplotlib.pyplot as plt
+                colors = ['-r','--r', '-b', '--b','-m', '--m','-g', '--g']
+                labs = ['test_tr', 'test_vl','sample_tr', 'sample_vl', 'gen_tr', 'gen_vl']
+                arrays = np.array(curve).transpose()[:4] # only show dis
+                fig = plt.figure()
+
+                for index, cost in enumerate(arrays):
+                    plt.plot(cost, colors[index], label=labs[index])
+
+                plt.legend(loc='upper right')
+                plt.xlabel('epoch')
+                plt.ylabel('cost')
+                fig.savefig(save_path+'curve'+str(size)+str(rank)+'.png',format='png')
+                #plt.show()
+                plt.close('all')
+                #---
+                
+            if count%10000==0:
+                
+                save_the_weight(model, save_path + 'weight'+ '-'+ str(epoch)+'-'+ str(count))
+                
 
             
             def dcgan_update(batch_i, eps_gen, eps_dis):
@@ -242,122 +315,17 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
             costs[1].append(cost_sample_i)
             costs[2].append(cost_gen_i)
             
-            
-            #6.swap
-            
-            if size>1 and epoch > int(num_epoch * swp_every):
-                                
-                # determine freq of swapping by multiplying total filenum by percentage param
-                swp_frq = int(num_epoch * num_batch_train * swp_every) 
-
-                if count% swp_frq==0:
-                    
-                    #9.gam2 with 100 samples
-                    
-                    num_samples=100
-                    samples = get_samples(num_samples).reshape((num_samples, 64*64*3))
-                    winner_ranks=do_gam2(model, samples, comm, avoid_ranks, save_file_path=save_path+'gam2-e'+str(epoch)+'.csv')
-
-                    pairs=get_pairs(comm, rng, avoid_ranks=avoid_ranks)
-                    #pairs = get_winner(comm, rng, winner_ranks, avoid_ranks=avoid_ranks)
-                    
-                    if someconfigs.indep_workers==False:
-                    
-                        swp_time = time.time()
-
-                        pair = exchanger.exchange(pairs)
-                        #pair = exchanger.replace(winner_ranks, pairs)
-                    
-                        swp_time = time.time() - swp_time
-
-                        print 'pair(%d,%d) .%d swp%.2f' % (pair[0],pair[1], count,swp_time)
-                        
-                        smooth_count=total_smooth_count
-                        
-                smooth_count, eps_gen, eps_dis=smooth_swp_lr(bk_eps_gen, bk_eps_dis, eps_gen, eps_dis, smooth_count, total_smooth_count)
-                        
-                        
-                        
-            
-            
-            #---
 
         exec_finish = timeit.default_timer() 
         print 'Exec Time %f ' % ( exec_finish - exec_start)
 
 
         if epoch % 1 == 0 or epoch > 2 or epoch == (num_epoch-1):
-
-            costs_vl = [[],[],[]]
             
-            for batch_j in xrange(p_valid.num_batches):
-                data = p_valid.next()/ 255.
-                data = data.astype('float32')
-                # if epoch < num_epoch * 0.25 :
-#                     data = np.asarray(corrupt_input(rng, data, 0.3), dtype='float32')
-#                 elif epoch < num_epoch * 0.5 :
-#                     data = np.asarray(corrupt_input(rng, data, 0.1), dtype='float32')
-                a,b,c,d = data.shape
-                data = data.reshape(a, b*c*d)
-                cost_test_vl_j, cost_gen_vl_j = get_valid_cost(data)
-                cost_sample_vl_j=0
-                costs_vl[0].append(cost_test_vl_j)
-                costs_vl[1].append(cost_sample_vl_j)
-                costs_vl[2].append(cost_gen_vl_j)
-            #    print("validation success !");
-
-            cost_test_vl = np.mean(np.asarray(costs_vl[0]))
-            cost_sample_vl = np.mean(np.asarray(costs_vl[1]))
-            cost_gen_vl = np.mean(np.asarray(costs_vl[2]))             
-
-            cost_test_tr = np.mean(np.asarray(costs[0]))
-            cost_sample_tr = np.mean(np.asarray(costs[1]))
-            cost_gen_tr = np.mean(np.asarray(costs[2]))
-
-            # cost_tr = cost_dis_tr+cost_gen_tr
-            # cost_vl = cost_dis_vl+cost_gen_vl
-
-            print 'Epoch %d, epsilon_gen %f5, epsilon_dis %f5, tr dis gen %g, %g, %g | vl disc gen %g, %g, %g '\
-                    % (epoch, eps_gen, eps_dis, cost_test_tr, cost_sample_vl, cost_gen_tr, cost_test_vl, cost_sample_tr, cost_gen_vl)
-
-            num_samples=100
-            samples = get_samples(num_samples).reshape((num_samples, 64*64*3))
-            display_images(np.asarray(samples * 255, dtype='int32'), \
-                                        tile_shape = (10,10), img_shape=(64,64), \
-                                        fname=save_path+'/' +str(size)+str(rank)+'-' + str(epoch))
-
             # change the name to save to when new model is found.
-            if epoch%4==0 or epoch>(num_epoch-3) or epoch<2: 
-                save_the_weight(model, save_path+str(size)+str(rank)+'dcgan_'+ model_param_save + str(epoch))# + findex+ str(K)) 
-                
-            
-            #7.save curve
-
-            # date = '-%d-%d' % (time.gmtime()[1], time.gmtime()[2])
-            curve.append([cost_test_tr ,cost_test_vl , cost_sample_tr, cost_sample_vl, cost_gen_tr, cost_gen_vl ])
-
-            np.save(save_path+'curve'+str(size)+str(rank)+'.npy', np.array(curve))
-
-            #---
-            
-            #8.curve plot
-    
-            import matplotlib.pyplot as plt
-            colors = ['-r','--r', '-b', '--b','-m', '--m','-g', '--g']
-            labs = ['test_tr', 'test_vl','sample_tr', 'sample_vl', 'gen_tr', 'gen_vl']
-            arrays = np.array(curve).transpose()[:4] # only show dis
-            fig = plt.figure()
-
-            for index, cost in enumerate(arrays):
-                plt.plot(cost, colors[index], label=labs[index])
-    
-            plt.legend(loc='upper right')
-            plt.xlabel('epoch')
-            plt.ylabel('cost')
-            fig.savefig(save_path+'curve'+str(size)+str(rank)+'.png',format='png')
-            #plt.show()
-            plt.close('all')
-            #---
+            # if epoch%4==0 or epoch>(num_epoch-3) or epoch<2:
+            pass
+            # save_the_weight(model, save_path+str(size)+str(rank)+'dcgan_'+ model_param_save + str(epoch)+'-'+ str(count))# + findex+ str(K))
                 
                 
                 
