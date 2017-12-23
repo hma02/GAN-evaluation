@@ -261,7 +261,6 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
             if count%10000==0:
                 
                 save_the_weight(model, save_path + 'weight'+ '-'+ str(epoch)+'-'+ str(count))
-                
 
             
             def dcgan_update(batch_i, eps_gen, eps_dis):
@@ -278,6 +277,13 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
                 a,b,c,d = data.shape
                 data = data.reshape(a,b*c*d)
                 cost_test_i  = discriminator_update(data, lr=eps_dis)
+                from send_email import email
+                if np.isnan(cost_test_i):
+                    email('training got nan at %d, %d\n %s\n %s' % (epoch, count, string, dir_path))
+                    raise ValueError('training got nan at %d, %d' % (epoch, count))
+                if np.isinf(cost_test_i):
+                    email('training got inf at %d, %d\n %s\n %s' % (epoch, count, string, dir_path))
+                    raise ValueError('training got inf at %d, %d' % (epoch, count))
                 cost_sample_i = 0
                 return cost_test_i, cost_sample_i, cost_gen_i
                 
@@ -318,14 +324,6 @@ def lets_train(model, train_params, num_batchs, theano_fns, opt_params, model_pa
 
         exec_finish = timeit.default_timer() 
         print 'Exec Time %f ' % ( exec_finish - exec_start)
-
-
-        if epoch % 1 == 0 or epoch > 2 or epoch == (num_epoch-1):
-            
-            # change the name to save to when new model is found.
-            # if epoch%4==0 or epoch>(num_epoch-3) or epoch<2:
-            pass
-            # save_the_weight(model, save_path+str(size)+str(rank)+'dcgan_'+ model_param_save + str(epoch)+'-'+ str(count))# + findex+ str(K))
                 
                 
                 
