@@ -61,15 +61,15 @@ def retrieve_name(var):
 def get_test_list():
     
     sample_list = [
-        '12-12-75283-lsgan-1234', # 172_128
-        '12-12-75766-lsgan-1234', # 128_128
-        '12-12-76628-lsgan-1234'  # 256_256
+        '12-21-9960-gan-1234', # toy 128_172 (finished 100e)
+        '12-21-11743-wgan-1234', # toy 128_172 (finished 100e)
+        '12-22-21043-lsgan-1234'  # toy 128_172 (finished 100e)
     ]
     
     ckernr_list = [
-        '172_128',
-        '128_128',
-        '256_256'   
+        '128_172',
+        '128_172',
+        '128_172'   
     ]
     
     return sample_list, ckernr_list
@@ -128,7 +128,7 @@ if __name__=='__main__':
         
         load_path =  fold
         
-        load_epoch = 4
+        load_epoch = [10,40,70,80,90,100][-1]
         
         ltype=fold.split('-')[-2]
         
@@ -140,7 +140,7 @@ if __name__=='__main__':
         load_path = save_path+'/'+ load_path
         
         load_path_file = load_path +'/'+ \
-        '10dcgan_num_hid100.batch100.eps_dis5e-05.eps_gen5e-05.num_z100.num_epoch100.lam1e-06.ts3.data.100_CONV_lsun'+str(load_epoch)+'.save'
+        'weight-'+str(load_epoch)+'-'+str(load_epoch*900)+'.save'
         
         try:
             assert os.path.isfile(load_path_file)

@@ -43,7 +43,7 @@ def train(model, train_params, num_batchs, theano_fns, opt_params, model_params)
     train_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_train_64x64'
     valid_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_val_64x64'
     from input_provider import ImageProvider
-    p_train = ImageProvider(train_lmdb,batch_sz)
+    p_train = ImageProvider(train_lmdb,batch_sz, limit=900*batch_sz)
     p_valid = ImageProvider(valid_lmdb,batch_sz)
      
      
@@ -197,7 +197,7 @@ def main(opt_params, ganI_params, train_params, conv_params):
 
     batch_sz, epsilon_gen, epsilon_dis,  momentum, num_epoch, N, Nv, Nt, lam    = opt_params  
     batch_sz, D, num_hids, rng, num_z, nkerns, ckern, num_channel, num_steps    = ganI_params 
-    conv_num_hid, D, num_class, batch_sz, num_channel, kern                         = conv_params  
+    conv_num_hid, D, num_class, batch_sz, num_channel                         = conv_params  
     num_epoch, epoch_start, contF,train_filenames, valid_filenames, test_filenames  = train_params 
     num_batch_train = len(train_filenames)
     num_batch_valid = len(valid_filenames)
@@ -210,10 +210,10 @@ def main(opt_params, ganI_params, train_params, conv_params):
     from base.subnets.convnet_cuda64 import convnet64
     import os
     # print int(os.environ['CRI_KERN']), 'critic ckern'
-    conv_params[-1]=int(os.environ['CRI_KERN'])
+    # conv_params[-1]=int(os.environ['CRI_KERN']) CRI_KERN always 128
     
     
-    for mtype in ['ls', 'iw']:
+    for mtype in ['iw', 'ls']:
         
         os.environ['MTYPE']=mtype
     
@@ -343,8 +343,8 @@ def run(rng_seed,ltype, mtype,load_path, load_epoch, verbose=False, ckernr=None,
     momentum    = 0.0 #Not Used
     lam         = 0.0
     
-    epsilon_dis = 0.0002
-    epsilon_gen = 0.0001
+    epsilon_dis = 0.002
+    epsilon_gen = 0.001
     
     # if mtype =='js' :
     #     epsilon_dis = 0.0002
@@ -364,7 +364,7 @@ def run(rng_seed,ltype, mtype,load_path, load_epoch, verbose=False, ckernr=None,
 
     # ganI (GEN)
     filter_sz   = 4 #FIXED
-    nkerns      = [8,4,2,1,3]
+    nkerns      = [1,8,4,2,1]
     ckern       = int(ckernr.split('_')[-1]) #20
     num_hid1    = nkerns[0]*ckern*filter_sz*filter_sz #Fixed
     num_steps   = 3 # time steps
@@ -443,7 +443,7 @@ def run(rng_seed,ltype, mtype,load_path, load_epoch, verbose=False, ckernr=None,
     train_params = [num_epoch, epoch_start, contF, train_filenames, valid_filenames, test_filenames]
     opt_params   = [batch_sz, epsilon_gen, epsilon_dis,  momentum, num_epoch, N, Nv, Nt, lam1]    
     ganI_params  = [batch_sz, D, num_hids, rng, num_z, nkerns, ckern, num_channel, num_steps]
-    conv_params  = [conv_num_hid, D, num_class, batch_sz, num_channel, kern]
+    conv_params  = [conv_num_hid, D, num_class, batch_sz, num_channel] # , kern
     book_keeping = main(opt_params, ganI_params, train_params, conv_params)
 
     

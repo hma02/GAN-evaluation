@@ -23,6 +23,10 @@ import theano.tensor as T
 from subnets.layers.utils import floatX
 from collections import OrderedDict
 
+rng = np.random.RandomState(1234)
+import theano.sandbox.rng_mrg as RNG_MRG
+MRG = RNG_MRG.MRG_RandomStreams(rng.randint(2 ** 30))
+
 
 class Optimize():
 
@@ -198,8 +202,8 @@ class Optimize():
         Xu = T.matrix('X'); 
 
         gen_samples  = gen.get_samples(self.batch_sz)#.reshape([-1,3072])
-        p_y__x1  = mnnd.propagate(Xu, atype='leaky').flatten()
-        p_y__x0  = mnnd.propagate(gen_samples, reshapeF=True, atype='leaky').flatten()
+        p_y__x1  = mnnd.propagate(Xu, reshapeF=True, atype='leaky').flatten()
+        p_y__x0  = mnnd.propagate(gen_samples, atype='leaky').flatten()
         #p_y__x1  = mnnd.propagate(Xu, atype='sigmoid')# reshapeF=True, atype='leaky').flatten()
         #p_y__x0  = mnnd.propagate(gen_samples, atype='sigmoid')#, atype='leaky').flatten()
 
@@ -209,7 +213,7 @@ class Optimize():
         elif mtype == 'iw':
             #Improved WGAN
             cost =  T.mean(p_y__x1) - T.mean(p_y__x0)
-            difference = (gen_samples.reshape([gen_samples.shape[0],3072]) - Xu)
+            difference = (gen_samples.reshape([gen_samples.shape[0],12288]) - Xu)
             coef = MRG.uniform(size=(gen_samples.shape[0],1), low=-1., high=1.)
             interpolation = Xu + coef* difference 
             grad_real = T.grad(T.sum(mnnd.propagate(interpolation, reshapeF=True, atype='leaky').flatten()), interpolation)
