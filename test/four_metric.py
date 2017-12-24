@@ -135,34 +135,28 @@ if __name__=='__main__':
         
         load_path =  fold
         
-        load_epoch = [10,40,70,80,90,100][-1]
+        load_epochs = [20,40,60,80,100]
         
-        ltype=fold.split('-')[-2]
+        for load_epoch in load_epochs:
         
-        # ckernr = ['128','172']
-        # ckernr = '_'.join(ckernr)
+            ltype=fold.split('-')[-2]
         
-        # print load_path, load_epoch, ltype, ckernr
-
-        load_path = save_path+'/'+ load_path
+            load_path_file = save_path+'/'+ load_path +'/'+'weight-'+str(load_epoch)+'-'+str(load_epoch*900)+'.save'
         
-        load_path_file = load_path +'/'+ \
-        'weight-'+str(load_epoch)+'-'+str(load_epoch*900)+'.save'
+            try:
+                assert os.path.isfile(load_path_file)
+            except:
+                print load_path_file
+                raise
+            rng_seed=1234
         
-        try:
-            assert os.path.isfile(load_path_file)
-        except:
-            print load_path_file
-            raise
-        rng_seed=1234
-        
-        mtype=None
+            mtype=None
     
-        ls, iw, MMD = test_dcgan_four_metric.run(rng_seed, ltype, mtype, load_path_file, load_epoch, ckernr=ckernr, cri_ckern='128')
+            ls, iw, MMD = test_dcgan_four_metric.run(rng_seed, ltype, mtype, load_path_file, load_epoch, ckernr=ckernr, cri_ckern='128')
         
-        print 'fold %s (%d/%d) :' % (fold, fold_index, len(sample_list)), ls, iw, MMD
+            print 'fold %s (%d/%d) :' % (fold, fold_index, len(sample_list)), ls, iw, MMD
         
-        f.write('fold %s epoch %d: %f %f %f\n' % (fold, load_epoch, ls, iw, MMD))
+            f.write('fold %s epoch %d: %f %f %f\n' % (fold, load_epoch, ls, iw, MMD))
         
     f.close()
         

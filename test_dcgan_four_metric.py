@@ -55,7 +55,7 @@ def train(model, train_params, num_batchs, theano_fns, opt_params, model_params)
      
      
     
-    print '...Start Testing'
+    # print '...Start Testing'
     findex= str(num_hids[0])+'_'
     best_vl = np.infty    
     k=0 #FIXED
@@ -77,7 +77,7 @@ def train(model, train_params, num_batchs, theano_fns, opt_params, model_params)
                 from base.utils import get_epsilon_decay
                 eps_dis = 0.1 * epsilon_dis * get_epsilon_decay(k+1, 100, constant)
                 k+=1
-                print 'decay', batch_i, k
+                # print 'decay', batch_i, k
                 
             data = p_train.next()/ 255.
             data = data.astype('float32')
@@ -119,7 +119,8 @@ def train(model, train_params, num_batchs, theano_fns, opt_params, model_params)
                 tr_costs.append(cost_mnnd_tr)
                 vl_costs.append(cost_mnnd_vl)
                 # te_costs.append(cost_mnnd_te)
-                print '%d/%d, %f' % (batch_i,p_train.num_batches,eps_dis), cost_mnnd_vl, find_window_average(vl_costs,10)
+                print cost_mnnd_vl,
+                # print '%d/%d, %f' % (batch_i,p_train.num_batches,eps_dis), cost_mnnd_vl, find_window_average(vl_costs,10)
                 
     print
     
@@ -163,7 +164,7 @@ def train(model, train_params, num_batchs, theano_fns, opt_params, model_params)
 
 def load_model(model_params, mname='DCGAN',  contF=True ):
 
-    print '...Starting from the beginning'''
+    # print '...Starting from the beginning'''
     if mname=='GRAN':
         model = GRAN(model_params, ltype='gan')
     elif mname=='DCGAN':
