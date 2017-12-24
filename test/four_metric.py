@@ -119,12 +119,6 @@ if __name__=='__main__':
     #
     # session= [name for name in names if name!='folds'][0]
     # print session
-    
-    f=open('result.txt', 'w')
-    
-    f.close()
-    
-    f=open('test_output.txt', 'w')
          
     
     sample_list, ckernr_list = get_test_list()
@@ -132,6 +126,8 @@ if __name__=='__main__':
     
     
     for fold_index, (fold, ckernr) in enumerate(zip(sample_list,ckernr_list)):
+        
+        f=open('result/test_output_%s.txt' % fold, 'w')
         
         load_path =  fold
         
@@ -154,11 +150,11 @@ if __name__=='__main__':
     
             ls, iw, MMD = test_dcgan_four_metric.run(rng_seed, ltype, mtype, load_path_file, load_epoch, ckernr=ckernr, cri_ckern='128')
         
-            print 'fold %s (%d/%d) :' % (fold, fold_index, len(sample_list)), ls, iw, MMD
+            print 'fold %s epoch %d: (%d/%d) LS: %.7f IW: %.7f MMD: %.7f:' % (fold, load_epoch, fold_index, len(sample_list), ls, iw, MMD)
         
             f.write('fold %s epoch %d: %f %f %f\n' % (fold, load_epoch, ls, iw, MMD))
         
-    f.close()
+        f.close()
         
             
 

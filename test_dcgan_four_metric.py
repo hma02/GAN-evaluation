@@ -259,9 +259,12 @@ def mmd_is(ganI, train_params, num_batchs, theano_fns, opt_params, model_params)
     num_batch_train, num_batch_valid, num_batch_test                        = num_batchs
     get_samples, mnnd_update, get_valid_cost, get_test_cost = theano_fns
     
+    start=time.time()
     
-    num_samples=2000
+    num_samples=150
     samples = get_samples(num_samples)
+    
+    
     
     # global train_set_np, test_set_np
     
@@ -308,25 +311,28 @@ def mmd_is(ganI, train_params, num_batchs, theano_fns, opt_params, model_params)
     bandwidths = [2.0, 5.0, 10.0, 20.0, 40.0, 80.0]
     _samples = samples.reshape((num_samples, 64*64*3))
     
+    t1 = time.time()
     
     valid_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_val_64x64'
     from input_provider import ImageProvider
     p_valid = ImageProvider(valid_lmdb,batch_sz)
     
     data = p_valid.next(batch_sz*p_valid.num_batches)/ 255.
+    
+    # print p_valid.num_batches, batch_sz
+    
     data = data.astype('float32')
     a,b,c,d = data.shape
     data = data.reshape(a,b*c*d)
     
     # print data.shape, _samples.shape
     
-    start=time.time()
+    t2 = time.time()
     
     mmd_te_score = mix_rbf_mmd2(data, _samples, sigmas=bandwidths)
     
-    print 'mmd %f spent %f s' % (mmd_te_score, time.time()-start)
+    # print 'mmd %f spent %f + %f + %f s' % (mmd_te_score, time.time()-t2, t2-t1, t1-start)
     # mmd_vl_score = mix_rbf_mmd2(valid_set_np[0][:10000], _samples, sigmas=bandwidths)
-    
     
     return mmd_te_score #, is_sam
 
