@@ -27,7 +27,14 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-
+def find_window_average(array, num):
+    if num>len(array):
+        _num=len(array)
+    else:
+        _num=num
+    return np.mean(array[-1*_num:])
+        
+        
 def train(model, train_params, num_batchs, theano_fns, opt_params, model_params):
 
     ganI_params, conv_params = model_params 
@@ -52,11 +59,11 @@ def train(model, train_params, num_batchs, theano_fns, opt_params, model_params)
     findex= str(num_hids[0])+'_'
     best_vl = np.infty    
     k=0 #FIXED
-    constant=4
+    constant=2
     
     tr_costs, vl_costs, te_costs = [],[], []
     
-    num_epoch = 10
+    num_epoch = 3
     
     exec_start = timeit.default_timer()
     
@@ -66,10 +73,11 @@ def train(model, train_params, num_batchs, theano_fns, opt_params, model_params)
             
             costs=[[],[], []]
             
-            if constant**k == batch_i+1: 
+            if constant**k == batch_i+1+epoch*p_train.num_batches: 
                 from base.utils import get_epsilon_decay
                 eps_dis = 0.1 * epsilon_dis * get_epsilon_decay(k+1, 100, constant)
                 k+=1
+                print 'decay', batch_i, k
                 
             data = p_train.next()/ 255.
             data = data.astype('float32')
@@ -80,7 +88,7 @@ def train(model, train_params, num_batchs, theano_fns, opt_params, model_params)
             costs[0].append(cost_mnnd_i)
             
             
-            if batch_i % 2000 == 0 or batch_i < 3 or batch_i>= p_train.num_batches-2:
+            if batch_i % int(p_train.num_batches*0.1) == 0 or batch_i < 4:
 
                 costs_vl = [[],[],[]]
                 for batch_j in xrange(p_valid.num_batches):
@@ -111,7 +119,7 @@ def train(model, train_params, num_batchs, theano_fns, opt_params, model_params)
                 tr_costs.append(cost_mnnd_tr)
                 vl_costs.append(cost_mnnd_vl)
                 # te_costs.append(cost_mnnd_te)
-                print cost_mnnd_vl,
+                print '%d/%d, %f' % (batch_i,p_train.num_batches,eps_dis), cost_mnnd_vl, find_window_average(vl_costs,10)
                 
     print
     
@@ -141,10 +149,14 @@ def train(model, train_params, num_batchs, theano_fns, opt_params, model_params)
     else:
         sign=-1
     vl_score, idx = find_farthest(vl_costs, vl_costs[0], sign=sign)
-    te_score = vl_score # te_costs[idx]
+         
+    te_score = find_window_average(vl_costs,10) # test set not available yet #  te_costs[ind]
     vl_start = vl_costs[0]
 
     print os.environ['LOAD_EPOCH'], vl_start, vl_score, te_score
+    
+    p_valid.close()
+    p_train.close()
 
     return te_score
 
@@ -202,6 +214,8 @@ def main(opt_params, ganI_params, train_params, conv_params):
     num_batch_train = len(train_filenames)
     num_batch_valid = len(valid_filenames)
     num_batch_test  = len(test_filenames)
+    
+    num_batchs = [num_batch_train, num_batch_valid, num_batch_test]
 
     model_params = [ganI_params, conv_params]
     ganI = load_model(model_params,mname='DCGAN', contF=True)
@@ -212,7 +226,6 @@ def main(opt_params, ganI_params, train_params, conv_params):
     # print int(os.environ['CRI_KERN']), 'critic ckern'
     # conv_params[-1]=int(os.environ['CRI_KERN']) CRI_KERN always 128
     
-    
     for mtype in ['iw', 'ls']:
         
         os.environ['MTYPE']=mtype
@@ -222,8 +235,6 @@ def main(opt_params, ganI_params, train_params, conv_params):
         #mnnd = hidden_layer(3072, 1, 'layer1') #single linear layer - simplest mode
         opt, get_samples, mnnd_update, get_valid_cost, get_test_cost = set_up_train(ganI, mnnd, opt_params)
         theano_fns = [get_samples, mnnd_update, get_valid_cost, get_test_cost]
-        num_batchs = [num_batch_train, num_batch_valid, num_batch_test]
-        
         te_cost = train(ganI, train_params, num_batchs, theano_fns, opt_params, model_params)
 
         
@@ -238,7 +249,7 @@ def main(opt_params, ganI_params, train_params, conv_params):
     
     return te_score_ls, te_score_iw , mmd_te #, is_sam
 
-def mmd_is(ganI, train_params, num_batchs, theano_fns, opt_params, model_params, sample):
+def mmd_is(ganI, train_params, num_batchs, theano_fns, opt_params, model_params):
     
     ganI_params, conv_params = model_params 
     batch_sz, epsilon_gen, epsilon_dis, momentum, num_epoch, N, Nv, Nt, lam = opt_params   
@@ -248,7 +259,7 @@ def mmd_is(ganI, train_params, num_batchs, theano_fns, opt_params, model_params,
     get_samples, mnnd_update, get_valid_cost, get_test_cost = theano_fns
     
     
-    num_samples=5000
+    num_samples=2000
     samples = get_samples(num_samples)
     
     # global train_set_np, test_set_np
@@ -291,11 +302,28 @@ def mmd_is(ganI, train_params, num_batchs, theano_fns, opt_params, model_params,
     
     # print 'MMD'
     
-    from test.eval_gan_mmd import mix_rbf_mmd2
+    from test.maximum_mean_discripency import mix_rbf_mmd2
     
     bandwidths = [2.0, 5.0, 10.0, 20.0, 40.0, 80.0]
     _samples = samples.reshape((num_samples, 64*64*3))
-    mmd_te_score = mix_rbf_mmd2(test_set_np[0], _samples, sigmas=bandwidths)
+    
+    
+    valid_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_val_64x64'
+    from input_provider import ImageProvider
+    p_valid = ImageProvider(valid_lmdb,batch_sz)
+    
+    data = p_valid.next(batch_sz*p_valid.num_batches)/ 255.
+    data = data.astype('float32')
+    a,b,c,d = data.shape
+    data = data.reshape(a,b*c*d)
+    
+    # print data.shape, _samples.shape
+    
+    start=time.time()
+    
+    mmd_te_score = mix_rbf_mmd2(data, _samples, sigmas=bandwidths)
+    
+    print 'mmd %f spent %f s' % (mmd_te_score, time.time()-start)
     # mmd_vl_score = mix_rbf_mmd2(valid_set_np[0][:10000], _samples, sigmas=bandwidths)
     
     
@@ -343,8 +371,8 @@ def run(rng_seed,ltype, mtype,load_path, load_epoch, verbose=False, ckernr=None,
     momentum    = 0.0 #Not Used
     lam         = 0.0
     
-    epsilon_dis = 0.002
-    epsilon_gen = 0.001
+    epsilon_dis = 0.0002
+    epsilon_gen = 0.0001
     
     # if mtype =='js' :
     #     epsilon_dis = 0.0002
@@ -444,8 +472,6 @@ def run(rng_seed,ltype, mtype,load_path, load_epoch, verbose=False, ckernr=None,
     opt_params   = [batch_sz, epsilon_gen, epsilon_dis,  momentum, num_epoch, N, Nv, Nt, lam1]    
     ganI_params  = [batch_sz, D, num_hids, rng, num_z, nkerns, ckern, num_channel, num_steps]
     conv_params  = [conv_num_hid, D, num_class, batch_sz, num_channel] # , kern
-    book_keeping = main(opt_params, ganI_params, train_params, conv_params)
-
     
     te_score_ls, te_score_iw , mmd_te = main(opt_params, ganI_params, train_params, conv_params)
 

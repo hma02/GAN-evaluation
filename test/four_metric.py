@@ -62,14 +62,14 @@ def get_test_list():
     
     sample_list = [
         '12-21-9960-gan-1234', # toy 128_172 (finished 100e)
-        '12-21-11743-wgan-1234', # toy 128_172 (finished 100e)
-        '12-22-21043-lsgan-1234'  # toy 128_172 (finished 100e)
+        # '12-21-11743-wgan-1234', # toy 128_172 (finished 100e)
+        # '12-22-21043-lsgan-1234'  # toy 128_172 (finished 100e)
     ]
     
     ckernr_list = [
         '128_172',
-        '128_172',
-        '128_172'   
+        # '128_172',
+        # '128_172' 
     ]
     
     return sample_list, ckernr_list
@@ -120,6 +120,13 @@ if __name__=='__main__':
     # session= [name for name in names if name!='folds'][0]
     # print session
     
+    f=open('result.txt', 'w')
+    
+    f.close()
+    
+    f=open('test_output.txt', 'w')
+         
+    
     sample_list, ckernr_list = get_test_list()
     
     
@@ -151,9 +158,14 @@ if __name__=='__main__':
         
         mtype=None
     
-        ls, iw, MMD, IS = test_dcgan_four_metric.run(rng_seed, ltype, mtype, load_path_file, load_epoch, ckernr=ckernr, cri_ckern='128')
+        ls, iw, MMD = test_dcgan_four_metric.run(rng_seed, ltype, mtype, load_path_file, load_epoch, ckernr=ckernr, cri_ckern='128')
         
-        print 'fold %s (%d/%d) :' % (fold, fold_index, len(sample_list)), ls, iw, MMD, IS
+        print 'fold %s (%d/%d) :' % (fold, fold_index, len(sample_list)), ls, iw, MMD
+        
+        f.write('fold %s epoch %d: %f %f %f\n' % (fold, load_epoch, ls, iw, MMD))
+        
+    f.close()
+        
             
 
                 
