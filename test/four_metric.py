@@ -129,6 +129,8 @@ if __name__=='__main__':
         
         f=open('result/test_output_%s.txt' % fold, 'w')
         
+        print 'evaluating ', fold
+        
         load_path =  fold
         
         load_epochs = [20,40,60,80,100]

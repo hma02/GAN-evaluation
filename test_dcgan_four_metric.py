@@ -125,7 +125,7 @@ def train(model, train_params, num_batchs, theano_fns, opt_params, model_params)
     print
     
     exec_finish = timeit.default_timer() 
-    if batch_i==0: print 'Exec Time %f ' % ( exec_finish - exec_start) 
+    print 'Exec Time %f ' % ( exec_finish - exec_start) 
    
     # print 'NND Tr: ', tr_costs
     # print 'NND Vl: ', vl_costs
