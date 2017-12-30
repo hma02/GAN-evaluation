@@ -58,21 +58,20 @@ def retrieve_name(var):
     return [var_name for var_name, var_val in callers_local_vars if var_val is var]
     
     
-def get_test_list():
+def get_test_list(ltype):
     
-    sample_list = [
-        '12-21-9960-gan-1234', # toy 128_172 (finished 100e)
-        # '12-21-11743-wgan-1234', # toy 128_172 (finished 100e)
-        # '12-22-21043-lsgan-1234'  # toy 128_172 (finished 100e)
-    ]
     
-    ckernr_list = [
-        '128_172',
-        # '128_172',
-        # '128_172' 
-    ]
+    if ltype=='gan':
+        snapshot='12-21-9960-gan-1234' # toy 128_172 (finished 100e)
+    elif ltype=='lsgan':
+        snapshot='12-21-11743-wgan-1234' # toy 128_172 (finished 100e)
+    elif ltype=='wgan':
+        snapshot='12-22-21043-lsgan-1234' # toy 128_172 (finished 100e)
     
-    return sample_list, ckernr_list
+    ckernr = '128_172'
+ 
+    
+    return [snapshot], [ckernr]
     
     
 if __name__=='__main__':
@@ -84,12 +83,16 @@ if __name__=='__main__':
     parser.add_argument("-d","--device", type=str, default='cuda0',
                             help="the theano context device to be used",
                             required=True)
+    parser.add_argument("-l","--ltype", type=str, default='wgan',
+                            help="the ltype to be tested",
+                            required=True)
                             
     args = parser.parse_args()
                             
                             
     import os
     device=args.device
+    ltype=args.ltype
 
     backend='cudandarray' if device.startswith('gpu') else 'gpuarray'
     os.environ['THEANO_BACKEND'] = backend
@@ -121,7 +124,7 @@ if __name__=='__main__':
     # print session
          
     
-    sample_list, ckernr_list = get_test_list()
+    sample_list, ckernr_list = get_test_list(ltype)
     
     
     
@@ -133,11 +136,12 @@ if __name__=='__main__':
         
         load_path =  fold
         
-        load_epochs = [20,40,60,80,100]
+        load_epochs = [100] #[76,84,92,100]
         
         for load_epoch in load_epochs:
         
-            ltype=fold.split('-')[-2]
+            _ltype=fold.split('-')[-2]
+            assert ltype==_ltype
         
             load_path_file = save_path+'/'+ load_path +'/'+'weight-'+str(load_epoch)+'-'+str(load_epoch*900)+'.save'
         
@@ -154,7 +158,7 @@ if __name__=='__main__':
         
             print 'fold %s epoch %d: (%d/%d) LS: %.7f IW: %.7f MMD: %.7f:' % (fold, load_epoch, fold_index, len(sample_list), ls, iw, MMD)
         
-            f.write('fold %s epoch %d: %f %f %f\n' % (fold, load_epoch, ls, iw, MMD))
+            f.write('fold %s epoch %d:\t%f\t%f\t%f\n' % (fold, load_epoch, ls, iw, MMD))
         
         f.close()
         

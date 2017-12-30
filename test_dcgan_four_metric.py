@@ -48,11 +48,10 @@ def train(model, train_params, num_batchs, theano_fns, opt_params, model_params)
     assert(mtype!=None and mtype!='')
     
     train_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_train_64x64'
-    valid_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_val_64x64'
+    valid_lmdb = train_lmdb #'/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_val_64x64'
     from input_provider import ImageProvider
     p_train = ImageProvider(train_lmdb,batch_sz, limit=900*batch_sz)
-    p_valid = ImageProvider(valid_lmdb,batch_sz)
-     
+    p_valid = ImageProvider(train_lmdb,batch_sz, limit=2*900*batche_sz, start=900*batch_sz)
      
     
     # print '...Start Testing'

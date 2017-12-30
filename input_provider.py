@@ -38,7 +38,7 @@ def image_val_provider(db_path,limit):
         
 class ImageProvider(object):
     
-    def __init__(self, db_path, batchsize, limit=-1):
+    def __init__(self, db_path, batchsize, limit=-1, start=-1):
         
         self.db_path = db_path
         
@@ -49,12 +49,19 @@ class ImageProvider(object):
         self.env = lmdb.open(db_path, map_size=1099511627776,
                         max_readers=100, readonly=True)
         
-        if limit<0:
-            num_images =  self.env.stat()['entries']
-        
-            self.num_batches = num_images/batchsize
+        if start>0:
+            self.start=start
         else:
-            self.num_batches = limit/batchsize
+            self.start=0
+            
+        if limit>0:
+            assert limit>self.start
+            num_images = limit-self.start
+        else:
+            num_images =  self.env.stat()['entries']
+                   
+        self.num_batches = num_images/batchsize
+            
         
         def image_provider(db_path=self.db_path):
     
@@ -62,6 +69,11 @@ class ImageProvider(object):
     
             with self.env.begin(write=False) as txn:
                 cursor = txn.cursor()
+                
+                cursor.first()
+                for i in range(self.start): 
+                    cursor.next()   
+                # print 'start key=', cursor.key()
         
                 for key, val in cursor:  # will stop automatically when the cursor reached the last key
                     
@@ -70,11 +82,14 @@ class ImageProvider(object):
                     if count>self.num_batches*self.batchsize-2:
                         # print 'returned at %d, %d, %d' % (count,self.num_batches, self.batchsize)
                         cursor.first()
+                        for i in range(self.start): 
+                            cursor.next()
+                        # print 'start key=', cursor.key()
                         count=0
                         
                     # if count%5000==0:
-                    #     print '%d/%d = %.2f%%' % (count,self.num_batches*self.batchsize, count*100.0/(self.num_batches*self.batchsize))
-                        
+                    #       print '%d/%d = %.2f%%' % (count,self.num_batches*self.batchsize, count*100.0/(self.num_batches*self.batchsize))
+   
                     yield key, decode_from_val_to_img(val)
         
         self.iter = image_provider()
@@ -222,10 +237,10 @@ if __name__ == '__main__':
     
     batch_sz=100
     train_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_train_64x64'
-    valid_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_val_64x64'
+    valid_lmdb = train_lmdb #'/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_val_64x64'
     # from input_provider import ImageProvider
     p_train = ImageProvider(train_lmdb,batch_sz,limit=900*batch_sz)
-    p_valid = ImageProvider(valid_lmdb,batch_sz)
+    p_valid = ImageProvider(valid_lmdb,batch_sz,limit=2*900*batch_sz, start=900*batch_sz)
     
     
     for e in range(10):
@@ -236,5 +251,6 @@ if __name__ == '__main__':
             data = p_train.next()/ 255.
     
         for batch_j in xrange(p_valid.num_batches):
-            print 'batch', batch_j
+            if batch_j%1000==0:
+                print 'batch', batch_j
             data = p_valid.next()/ 255.
