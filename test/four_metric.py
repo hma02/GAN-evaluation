@@ -63,9 +63,9 @@ def get_test_list(ltype):
     
     if ltype=='gan':
         snapshot='12-21-9960-gan-1234' # toy 128_172 (finished 100e)
-    elif ltype=='lsgan':
-        snapshot='12-21-11743-wgan-1234' # toy 128_172 (finished 100e)
     elif ltype=='wgan':
+        snapshot='12-21-11743-wgan-1234' # toy 128_172 (finished 100e)
+    elif ltype=='lsgan':
         snapshot='12-22-21043-lsgan-1234' # toy 128_172 (finished 100e)
     
     ckernr = '128_172'
@@ -141,7 +141,12 @@ if __name__=='__main__':
         for load_epoch in load_epochs:
         
             _ltype=fold.split('-')[-2]
-            assert ltype==_ltype
+            
+            try:
+                assert ltype==_ltype
+            except:
+                print ltype, ltype
+                raise
         
             load_path_file = save_path+'/'+ load_path +'/'+'weight-'+str(load_epoch)+'-'+str(load_epoch*900)+'.save'
         
