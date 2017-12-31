@@ -158,7 +158,7 @@ def train(model, train_params, num_batchs, theano_fns, opt_params, model_params)
     p_valid.close()
     p_train.close()
 
-    return te_score
+    return vl_score
 
 
 def load_model(model_params, mname='DCGAN',  contF=True ):
@@ -260,10 +260,9 @@ def mmd_is(ganI, train_params, num_batchs, theano_fns, opt_params, model_params)
     
     start=time.time()
     
-    num_samples=150
+    num_samples=3000
     samples = get_samples(num_samples)
-    
-    
+    _samples = samples.reshape((num_samples, 64*64*3))
     
     # global train_set_np, test_set_np
     
@@ -308,15 +307,22 @@ def mmd_is(ganI, train_params, num_batchs, theano_fns, opt_params, model_params)
     from test.maximum_mean_discripency import mix_rbf_mmd2
     
     bandwidths = [2.0, 5.0, 10.0, 20.0, 40.0, 80.0]
-    _samples = samples.reshape((num_samples, 64*64*3))
+    
     
     t1 = time.time()
     
-    valid_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_val_64x64'
-    from input_provider import ImageProvider
-    p_valid = ImageProvider(valid_lmdb,batch_sz)
+    # valid_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_val_64x64'
+    # from input_provider import ImageProvider
+    # p_valid = ImageProvider(valid_lmdb,batch_sz)
     
-    data = p_valid.next(batch_sz*p_valid.num_batches)/ 255.
+    
+    train_lmdb = '/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_train_64x64'
+    valid_lmdb = train_lmdb #'/scratch/g/gwtaylor/mahe6562/data/lsun/lmdb/bedroom_val_64x64'
+    from input_provider import ImageProvider
+    # p_train = ImageProvider(train_lmdb,batch_sz, limit=900*batch_sz)
+    p_valid = ImageProvider(train_lmdb,batch_sz, limit=2*900*batch_sz, start=900*batch_sz)
+
+    data = p_valid.next(batch_sz*100)/ 255.
     
     p_valid.close()
     
@@ -332,7 +338,14 @@ def mmd_is(ganI, train_params, num_batchs, theano_fns, opt_params, model_params)
     
     mmd_te_score = mix_rbf_mmd2(data, _samples, sigmas=bandwidths)
     
-    # print 'mmd %f spent %f + %f + %f s' % (mmd_te_score, time.time()-t2, t2-t1, t1-start)
+    while (np.isnan(mmd_te_score) or np.isinf(mmd_te_score)):
+        print 'MMD gives nan or inf, redoing it'
+        samples = get_samples(num_samples)
+        _samples = samples.reshape((num_samples, 64*64*3))
+        mmd_te_score = mix_rbf_mmd2(data, _samples, sigmas=bandwidths)
+        
+    
+    print 'mmd %f spent %f + %f + %f s' % (mmd_te_score, time.time()-t2, t2-t1, t1-start)
     # mmd_vl_score = mix_rbf_mmd2(valid_set_np[0][:10000], _samples, sigmas=bandwidths)
     
     return mmd_te_score #, is_sam

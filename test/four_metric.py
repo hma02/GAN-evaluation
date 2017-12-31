@@ -136,7 +136,7 @@ if __name__=='__main__':
         
         load_path =  fold
         
-        load_epochs = [100] #[76,84,92,100]
+        load_epochs = [100, 96, 92, 88, 84, 80, 76,60,40,20] #[76,84,92,100]
         
         for load_epoch in load_epochs:
         
@@ -161,7 +161,7 @@ if __name__=='__main__':
     
             ls, iw, MMD = test_dcgan_four_metric.run(rng_seed, ltype, mtype, load_path_file, load_epoch, ckernr=ckernr, cri_ckern='128')
         
-            print 'fold %s epoch %d: (%d/%d) LS: %.7f IW: %.7f MMD: %.7f:' % (fold, load_epoch, fold_index, len(sample_list), ls, iw, MMD)
+            print 'fold %s epoch %d: (%d/%d) LS: %.7f IW: %.7f MMD: %.7f' % (fold, load_epoch, fold_index, len(sample_list), ls, iw, MMD)
         
             f.write('fold %s epoch %d:\t%f\t%f\t%f\n' % (fold, load_epoch, ls, iw, MMD))
         
